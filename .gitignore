@@ -56,3 +56,4 @@ terraform.rc
 ### Custom ###
 
 .idea
+.data
