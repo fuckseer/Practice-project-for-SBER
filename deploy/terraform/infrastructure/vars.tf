@@ -1,5 +1,5 @@
 locals {
-  main_zone = "ru-central1-a"
+  main_zone = "ru-central1-b"
 }
 
 variable "iam_token" {
@@ -11,5 +11,9 @@ variable "cloud_id" {
 }
 
 variable "folder_id" {
+  type = string
+}
+
+variable "ssh_pub" {
   type = string
 }
