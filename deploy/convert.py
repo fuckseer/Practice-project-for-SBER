@@ -17,7 +17,13 @@ if __name__ == "__main__":
             image.rename(image.parent / f"{old_name}{image.suffix}")
         for label in labels:
             old_name = label.stem.split("-")[1]
-            label.rename(label.parent / f"{old_name}{image.suffix}")
+            label.rename(label.parent / f"{old_name}{label.suffix}")
+    if operation == "fillup":
+        images = (datadir / "images").glob("*.JPG")
+        labeldir = datadir / "labels"
+        for image in images:
+            new_label = labeldir / f"{image.stem}.txt"
+            new_label.touch()
     elif operation == "convert":
         convert_yolo_to_ls(
         str(datadir),
