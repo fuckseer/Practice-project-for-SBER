@@ -36,7 +36,7 @@ resource "yandex_iam_service_account_static_access_key" "ksenya-portnova-oc" {
 ### Object Storage ###
 
 resource "yandex_storage_bucket" "waste-detection" {
-  bucket     = "waste-detection"
+  bucket     = "waste"
   access_key = yandex_iam_service_account_static_access_key.cloud-editor.access_key
   secret_key = yandex_iam_service_account_static_access_key.cloud-editor.secret_key
 
