@@ -59,3 +59,4 @@ terraform.rc
 .data
 .DS_Store
 venv
+.ssh

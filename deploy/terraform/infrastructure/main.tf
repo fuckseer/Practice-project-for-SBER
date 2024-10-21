@@ -108,14 +108,15 @@ resource "yandex_compute_instance" "label-studio" {
   }
   resources {
     cores  = 2
-    memory = 1
-    core_fraction = 20
+    memory = 2
+    core_fraction = 100
   }
   scheduling_policy {
-    preemptible = true
+    preemptible = false
   }
   metadata = {
     docker-compose = file("docker-compose.yaml")
     ssh-keys = "angstorm:${var.ssh_pub}"
   }
+  allow_stopping_for_update = true
 }
