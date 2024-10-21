@@ -1,7 +1,7 @@
-import sys
-from label_studio_sdk.converter.imports.yolo import convert_yolo_to_ls
+import sys  # noqa: INP001
 from pathlib import Path
-from uuid import uuid4
+
+from label_studio_sdk.converter.imports.yolo import convert_yolo_to_ls
 
 if __name__ == "__main__":
     operation = sys.argv[1]
@@ -26,9 +26,8 @@ if __name__ == "__main__":
             new_label.touch()
     elif operation == "convert":
         convert_yolo_to_ls(
-        str(datadir),
-        str(datadir / "output.json"),
-        image_root_url=f"/data/local-files/?d={pack}/images",
-        image_ext=".JPG",
-    )
-
+            str(datadir),
+            str(datadir / "output.json"),
+            image_root_url=f"/data/local-files/?d={pack}/images",
+            image_ext=".JPG",
+        )
