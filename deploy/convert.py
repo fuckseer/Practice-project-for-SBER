@@ -1,6 +1,6 @@
-import sys  # noqa: INP001
+import json  # noqa: INP001
+import sys
 from pathlib import Path
-import json
 
 from label_studio_sdk.converter.imports.yolo import convert_yolo_to_ls
 
