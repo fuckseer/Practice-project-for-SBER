@@ -1,12 +1,20 @@
 output "access-keys" {
   value = {
-    "ksenya-portnova": {
-        access_key = yandex_iam_service_account_static_access_key.ksenya-portnova-oc.access_key
-        secret_key = yandex_iam_service_account_static_access_key.ksenya-portnova-oc.secret_key
+    "storage-editor" : {
+      access_key = yandex_iam_service_account_static_access_key.storage-editor.access_key
+      secret_key = yandex_iam_service_account_static_access_key.storage-editor.secret_key
+    },
+    "team1" : {
+      access_key = yandex_iam_service_account_static_access_key.team1.access_key
+      secret_key = yandex_iam_service_account_static_access_key.team1.secret_key
     }
-    "sergei-kiprin": {
-        access_key = yandex_iam_service_account_static_access_key.sergei-kiprin-oc.access_key
-        secret_key = yandex_iam_service_account_static_access_key.sergei-kiprin-oc.secret_key
+    "team2" : {
+      access_key = yandex_iam_service_account_static_access_key.team2.access_key
+      secret_key = yandex_iam_service_account_static_access_key.team2.secret_key
+    }
+    "team3" : {
+      access_key = yandex_iam_service_account_static_access_key.team3.access_key
+      secret_key = yandex_iam_service_account_static_access_key.team3.secret_key
     }
   }
   sensitive = true

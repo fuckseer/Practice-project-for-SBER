@@ -15,31 +15,53 @@ resource "yandex_iam_service_account_static_access_key" "cloud-editor" {
   service_account_id = yandex_iam_service_account.cloud-editor.id
 }
 
-resource "yandex_iam_service_account" "sergei-kiprin" {
-  folder_id = var.folder_id
-  name      = "sergei-kiprin"
-}
-
-resource "yandex_iam_service_account_static_access_key" "sergei-kiprin-oc" {
-  service_account_id = yandex_iam_service_account.sergei-kiprin.id
-}
-
-resource "yandex_iam_service_account" "ksenya-portnova" {
-  folder_id = var.folder_id
-  name      = "ksenya-portnova"
-}
-
-resource "yandex_iam_service_account_static_access_key" "ksenya-portnova-oc" {
-  service_account_id = yandex_iam_service_account.ksenya-portnova.id
-}
-
 resource "yandex_iam_service_account" "label-studio" {
   folder_id = var.folder_id
   name      = "label-studio"
 }
 
-resource "yandex_iam_service_account_static_access_key" "label-studio-oc" {
-  service_account_id = yandex_iam_service_account.label-studio.id
+# storage-editor
+
+resource "yandex_iam_service_account" "storage-editor" {
+  folder_id = var.folder_id
+  name      = "storage-editor"
+}
+
+resource "yandex_iam_service_account_static_access_key" "storage-editor" {
+  service_account_id = yandex_iam_service_account.storage-editor.id
+}
+
+# team1
+
+resource "yandex_iam_service_account" "team1" {
+  folder_id = var.folder_id
+  name      = "team1"
+}
+
+resource "yandex_iam_service_account_static_access_key" "team1" {
+  service_account_id = yandex_iam_service_account.team1.id
+}
+
+# team2
+
+resource "yandex_iam_service_account" "team2" {
+  folder_id = var.folder_id
+  name      = "team2"
+}
+
+resource "yandex_iam_service_account_static_access_key" "team2" {
+  service_account_id = yandex_iam_service_account.team2.id
+}
+
+# team3
+
+resource "yandex_iam_service_account" "team3" {
+  folder_id = var.folder_id
+  name      = "team3"
+}
+
+resource "yandex_iam_service_account_static_access_key" "team3" {
+  service_account_id = yandex_iam_service_account.team3.id
 }
 
 ### Object Storage ###
@@ -50,19 +72,31 @@ resource "yandex_storage_bucket" "waste-detection" {
   secret_key = yandex_iam_service_account_static_access_key.cloud-editor.secret_key
 
   grant {
-    id          = yandex_iam_service_account.sergei-kiprin.id
+    id          = yandex_iam_service_account.storage-editor.id
     type        = "CanonicalUser"
     permissions = ["READ", "WRITE"]
   }
 
   grant {
-    id          = yandex_iam_service_account.ksenya-portnova.id
+    id          = yandex_iam_service_account.team1.id
     type        = "CanonicalUser"
-    permissions = ["READ", "WRITE"]
+    permissions = ["READ"]
+  }
+
+  grant {
+    id          = yandex_iam_service_account.team2.id
+    type        = "CanonicalUser"
+    permissions = ["READ"]
+  }
+
+  grant {
+    id          = yandex_iam_service_account.team3.id
+    type        = "CanonicalUser"
+    permissions = ["READ"]
   }
 
   anonymous_access_flags {
-    read        = true
+    read = true
   }
 
   cors_rule {
