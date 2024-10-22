@@ -146,10 +146,10 @@ resource "yandex_compute_instance" "label-studio" {
   resources {
     cores         = 2
     memory        = 2
-    core_fraction = 100
+    core_fraction = 50
   }
   scheduling_policy {
-    preemptible = false
+    preemptible = true
   }
   metadata = {
     docker-compose = file("docker-compose.yaml")
