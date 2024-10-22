@@ -60,3 +60,4 @@ terraform.rc
 .DS_Store
 venv
 .ssh
+.ruff_cache
