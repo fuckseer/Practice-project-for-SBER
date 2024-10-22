@@ -61,7 +61,3 @@ ignore = [
     "COM812", # missing trailing comma in a tuple
     "ISC001", # implicit string concatenation
 ]
-
-[lint.per-file-ignores]
-"parsers/test.py" = ["S101"]
-"parseq/cron/tests.py" = ["S101", "S105"]
