@@ -50,12 +50,6 @@ resource "yandex_storage_bucket" "waste-detection" {
   secret_key = yandex_iam_service_account_static_access_key.cloud-editor.secret_key
 
   grant {
-    id          = yandex_iam_service_account.label-studio.id
-    type        = "CanonicalUser"
-    permissions = ["READ"]
-  }
-
-  grant {
     id          = yandex_iam_service_account.sergei-kiprin.id
     type        = "CanonicalUser"
     permissions = ["READ", "WRITE"]
@@ -65,6 +59,15 @@ resource "yandex_storage_bucket" "waste-detection" {
     id          = yandex_iam_service_account.ksenya-portnova.id
     type        = "CanonicalUser"
     permissions = ["READ", "WRITE"]
+  }
+
+  anonymous_access_flags {
+    read        = true
+  }
+
+  cors_rule {
+    allowed_methods = ["GET"]
+    allowed_origins = ["http://waste.sergei-kiprin.ru"]
   }
 }
 
@@ -93,22 +96,22 @@ data "yandex_compute_image" "container-optimized-image" {
 }
 
 resource "yandex_compute_instance" "label-studio" {
-  name = "label-studio"
+  name               = "label-studio"
   service_account_id = yandex_iam_service_account.label-studio.id
-  platform_id = "standard-v3"
+  platform_id        = "standard-v3"
   boot_disk {
     initialize_params {
       image_id = data.yandex_compute_image.container-optimized-image.id
     }
   }
   network_interface {
-    subnet_id = data.yandex_vpc_subnet.default.id
-    nat = true
+    subnet_id      = data.yandex_vpc_subnet.default.id
+    nat            = true
     nat_ip_address = yandex_vpc_address.label-studio.external_ipv4_address[0].address
   }
   resources {
-    cores  = 2
-    memory = 2
+    cores         = 2
+    memory        = 2
     core_fraction = 100
   }
   scheduling_policy {
@@ -116,7 +119,7 @@ resource "yandex_compute_instance" "label-studio" {
   }
   metadata = {
     docker-compose = file("docker-compose.yaml")
-    ssh-keys = "angstorm:${var.ssh_pub}"
+    ssh-keys       = "angstorm:${var.ssh_pub}"
   }
   allow_stopping_for_update = true
 }

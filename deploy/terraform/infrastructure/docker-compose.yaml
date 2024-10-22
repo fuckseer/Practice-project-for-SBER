@@ -5,7 +5,7 @@ services:
     image: heartexlabs/label-studio:latest
     restart: unless-stopped
     ports:
-      - "8080:8085"
+      - "80:8085"
       - "8081:8086"
     depends_on:
       - app
