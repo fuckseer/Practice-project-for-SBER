@@ -18,7 +18,7 @@ if __name__ == "__main__":
         for label in labels:
             old_name = label.stem.split("-")[1]
             label.rename(label.parent / f"{old_name}{label.suffix}")
-    if operation == "fillup":
+    elif operation == "fillup":
         images = (datadir / "images").glob("*.JPG")
         labeldir = datadir / "labels"
         for image in images:
@@ -29,5 +29,13 @@ if __name__ == "__main__":
             str(datadir),
             str(datadir / "output.json"),
             image_root_url=f"/data/local-files/?d={pack}/images",
+            image_ext=".JPG",
+        )
+    elif operation == "cloudreference":
+        storage = sys.argv[3]
+        convert_yolo_to_ls(
+            str(datadir),
+            str(datadir / "output.json"),
+            image_root_url=f"{storage}",
             image_ext=".JPG",
         )
