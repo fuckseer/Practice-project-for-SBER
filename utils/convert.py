@@ -6,9 +6,7 @@ from label_studio_sdk.converter.imports.yolo import convert_yolo_to_ls
 
 if __name__ == "__main__":
     operation = sys.argv[1]
-    pack = sys.argv[2]
-
-    datadir = Path(".data") / pack
+    datadir = Path(sys.argv[2])
 
     if operation == "rename":
         images = (datadir / "images").glob("*.JPG")
@@ -26,10 +24,11 @@ if __name__ == "__main__":
             new_label = labeldir / f"{image.stem}.txt"
             new_label.touch()
     elif operation == "convert":
+        dataset = sys.argv[3]
         convert_yolo_to_ls(
             str(datadir),
             str(datadir / "output.json"),
-            image_root_url=f"/data/local-files/?d={pack}/images",
+            image_root_url=f"/data/local-files/?d={dataset}/images",
             image_ext=".JPG",
         )
     elif operation == "cloudreference":
