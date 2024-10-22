@@ -1,5 +1,6 @@
 import sys  # noqa: INP001
 from pathlib import Path
+import json
 
 from label_studio_sdk.converter.imports.yolo import convert_yolo_to_ls
 
@@ -39,3 +40,13 @@ if __name__ == "__main__":
             image_root_url=f"{storage}",
             image_ext=".JPG",
         )
+    elif operation == "mergeclasses":
+        initial_path = datadir / "output.json"
+        merged_path = datadir / "output_merged.json"
+        with initial_path.open() as initial:
+            tasks = json.loads(initial.read())
+            for task in tasks:
+                for annotation in task["annotations"][0]["result"]:
+                    annotation["value"]["rectanglelabels"] = ["Waste"]
+            with merged_path.open("w") as merged:
+                merged.write(json.dumps(tasks))
