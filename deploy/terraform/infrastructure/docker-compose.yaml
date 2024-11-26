@@ -10,7 +10,7 @@ services:
     depends_on:
       - app
     environment:
-      - LABEL_STUDIO_HOST=${LABEL_STUDIO_HOST:-}
+      - LABEL_STUDIO_HOST=$${LABEL_STUDIO_HOST:-}
     volumes:
       - label-studio:/label-studio/data:rw
     command: nginx
@@ -32,11 +32,24 @@ services:
       - POSTGRE_PASSWORD=
       - POSTGRE_PORT=5432
       - POSTGRE_HOST=db
-      - LABEL_STUDIO_HOST=${LABEL_STUDIO_HOST:-}
+      - LABEL_STUDIO_HOST=$${LABEL_STUDIO_HOST:-}
       - JSON_LOG=1
     volumes:
       - label-studio:/label-studio/data:rw
     command: label-studio-uwsgi
+
+  mlflow:
+    restart: always
+    image: imichael/mlflow
+    depends_on:
+        - db
+    ports:
+        - "5000:5000"
+    environment:
+      - MLFLOW_S3_ENDPOINT_URL=https://storage.yandexcloud.net/
+      - AWS_ACCESS_KEY_ID=${mlflow_s3_key_id}
+      - AWS_SECRET_ACCESS_KEY=${mlflow_s3_key_secret}
+    command: mlflow server --backend-store-uri postgresql://postgres@db:5432/mlflow --default-artifact-root s3://${mlflow_s3_bucket}/ --host 0.0.0.0
 
   db:
     image: pgautoupgrade/pgautoupgrade:13-alpine

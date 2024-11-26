@@ -64,6 +64,17 @@ resource "yandex_iam_service_account_static_access_key" "team3" {
   service_account_id = yandex_iam_service_account.team3.id
 }
 
+# mlflow
+
+resource "yandex_iam_service_account" "mlflow" {
+  folder_id = var.folder_id
+  name      = "mlflow"
+}
+
+resource "yandex_iam_service_account_static_access_key" "mlflow" {
+  service_account_id = yandex_iam_service_account.mlflow.id
+}
+
 ### Object Storage ###
 
 resource "yandex_storage_bucket" "waste-detection" {
@@ -105,6 +116,18 @@ resource "yandex_storage_bucket" "waste-detection" {
   }
 }
 
+resource "yandex_storage_bucket" "mlflow" {
+  bucket_prefix = "mlflow-storage"
+  access_key    = yandex_iam_service_account_static_access_key.cloud-editor.access_key
+  secret_key    = yandex_iam_service_account_static_access_key.cloud-editor.secret_key
+
+  grant {
+    id          = yandex_iam_service_account.mlflow.id
+    type        = "CanonicalUser"
+    permissions = ["READ", "WRITE"]
+  }
+}
+
 ### Virtual Private Cloud ###
 
 data "yandex_vpc_network" "default" {
@@ -126,7 +149,7 @@ resource "yandex_vpc_address" "label-studio" {
 ### Compute Cloud ###
 
 data "yandex_compute_image" "container-optimized-image" {
-  family = "container-optimized-image"
+  image_id = "fd8d61mhumda10cb33vm"
 }
 
 resource "yandex_compute_instance" "label-studio" {
@@ -148,12 +171,16 @@ resource "yandex_compute_instance" "label-studio" {
     memory        = 2
     core_fraction = 50
   }
-  scheduling_policy {
-    preemptible = true
-  }
+  # scheduling_policy {
+  #   preemptible = true
+  # }
   metadata = {
-    docker-compose = file("docker-compose.yaml")
-    ssh-keys       = "angstorm:${var.ssh_pub}"
+    docker-compose = templatefile("docker-compose.yaml", {
+      mlflow_s3_bucket     = yandex_storage_bucket.mlflow.id
+      mlflow_s3_key_id     = yandex_iam_service_account_static_access_key.mlflow.access_key
+      mlflow_s3_key_secret = yandex_iam_service_account_static_access_key.mlflow.secret_key
+    })
+    ssh-keys = "angstorm:${var.ssh_pub}"
   }
   allow_stopping_for_update = true
 }
