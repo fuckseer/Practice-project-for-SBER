@@ -40,7 +40,7 @@ services:
 
   mlflow:
     restart: always
-    image: imichael/mlflow
+    image: angstorm/mlflow:2.18.0-boto-psycorg-amd64
     depends_on:
         - db
     ports:
