@@ -35,6 +35,9 @@ def get_model():
 
 model = get_model()
 
+@app.get("/")
+def greet():
+    return {"greet": "hi faggot"}
 
 # Представление для предсказания от модели
 @app.post("/predict")
