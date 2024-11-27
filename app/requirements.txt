@@ -4,3 +4,4 @@ ultralytics
 mlflow
 python-multipart
 python-dotenv
+opencv-python
