@@ -5,3 +5,4 @@ mlflow
 python-multipart
 python-dotenv
 opencv-python
+boto3
