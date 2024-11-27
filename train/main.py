@@ -18,7 +18,6 @@ settings.update({"mlflow": True})
 
 # Начинаем новый Run
 with mlflow.start_run() as run:
-
     # Трекаем параметры
     mlflow.log_param("epochs_count", EPOCHS)
     mlflow.log_param("test_image", TEST_IMAGE)
@@ -26,7 +25,8 @@ with mlflow.start_run() as run:
     # Добавляем теги
     mlflow.set_tag("Project", "COCO Detection")
 
-    # Тренируем, валидируем модель (YOLO автоматически сохранит парметры, метрики, артефакты)
+    # Тренируем, валидируем модель
+    # (YOLO автоматически сохранит парметры, метрики, артефакты)
     model = YOLO("yolo11n.pt")
     model.train(data=DATA, epochs=EPOCHS)
     model.val()
@@ -35,7 +35,9 @@ with mlflow.start_run() as run:
     # Тестируем модель
     test_results = model.predict(TEST_IMAGE)
     # Сохраняем метрику и тестируемую картинку
-    mlflow.log_metric('metrics/test_image_detections_count', len(test_results[0].boxes))
+    mlflow.log_metric(
+        "metrics/test_image_detections_count", len(test_results[0].boxes)
+    )
     mlflow.log_artifact(TEST_IMAGE)
 
     # Сохраняем модель PyTorch
