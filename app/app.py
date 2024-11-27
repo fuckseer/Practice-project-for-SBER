@@ -1,6 +1,5 @@
 import io
 import os
-from pathlib import Path
 
 import mlflow
 from dotenv import load_dotenv

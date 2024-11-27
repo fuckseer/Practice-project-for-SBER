@@ -4,6 +4,9 @@ RUN useradd -m -u 1000 user
 USER user
 ENV PATH="/home/user/.local/bin:$PATH"
 
+RUN apt update
+RUN apt install libgl1-mesa-glx libopencv-dev
+
 WORKDIR /app
 
 COPY --chown=user app/requirements.txt requirements.txt
