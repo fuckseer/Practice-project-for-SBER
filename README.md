@@ -1,3 +1,12 @@
+---
+title: Ocean Waste Detection
+emoji: 👀
+colorFrom: pink
+colorTo: pink
+sdk: docker
+pinned: false
+---
+
 # Модель детекции морского мусора
 
 ## Команда "Фидбек"
