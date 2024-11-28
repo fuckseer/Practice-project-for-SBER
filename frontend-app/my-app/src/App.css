@@ -1,0 +1,24 @@
+* {
+  font-family: 'Host Grotesk', sans-serif;
+  text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.2), -1px -1px 2px rgba(0, 0, 0, 0.1); /* Тень для объема */
+  box-sizing: border-box; /* Рекомендуется для удобной работы с размерами */
+  margin: 0;
+  padding: 0;
+}
+
+/* Фоновое изображение для всей страницы с затемнением */
+.page-background {
+  position: relative; 
+  background-image: url('../src/components/background.jpg');
+  background-size: cover;  
+  background-position: center; 
+  background-repeat: no-repeat;
+  min-height: 100vh;  
+  color: white;  
+  display: flex;
+  flex-direction: column;
+  background-color: rgba(0, 0, 0, 0.6); /* Полупрозрачный черный цвет для затемнения */
+  background-blend-mode: darken; /* Смешивание изображения с цветом фона */
+}
+
+

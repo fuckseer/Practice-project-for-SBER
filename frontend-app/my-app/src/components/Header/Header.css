@@ -1,0 +1,66 @@
+.header {
+    /* background-color: #80b2b0;  */
+    text-align: center;
+    padding: 40px;
+  }
+
+  .header {
+    text-align: center;
+    padding: 50px 20px;
+    background-size: cover; /* Покрытие всего компонента */
+    background-position: center; /* Центрирование фона */
+    color: white; /* Цвет текста, чтобы он был виден на фоне */
+  }
+  
+  .header nav {
+    margin-bottom: 60px;
+  }
+  
+  .header nav a {
+    margin: 0 15px;
+    text-decoration: none;
+    color: #0056b3; /* Темно-синий */
+    font-weight: bold;
+    font-size: 0.8rem;
+  }
+  
+  .header nav a:hover {
+    text-decoration: underline;
+  }
+  
+  .header h1 {
+    font-weight: bold;
+    font-size: 2rem;
+    color: #ffffff;
+    margin: 10px 0;
+  }
+  
+  .header p {
+    font-size: 1rem;
+    color: #ffffff; /* Более светлый серый */
+    margin: 10px 0;
+  }
+  
+
+.navbar {
+  display: flex;
+  justify-content: center; /* Центрируем навигацию */
+}
+
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 20px; /* Расстояние между ссылками */
+  margin: 0;
+  padding: 0;
+}
+
+.nav-links li a {
+  text-decoration: none; /* Убираем подчеркивание */
+  color: #fff; /* Белый цвет текста */
+  font-weight: normal;
+}
+
+.nav-links li a:hover {
+  color: #ff6600; /* Цвет при наведении */
+}

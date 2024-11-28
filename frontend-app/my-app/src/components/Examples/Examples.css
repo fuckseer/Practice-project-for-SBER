@@ -1,0 +1,34 @@
+.examples {
+  padding: 80px;
+  text-align: center;
+}
+
+.examples h2 {
+  font-weight: bold;
+  font-size: 1.5rem; /* Увеличенный размер заголовка */
+  color: #ffffff;
+  margin-bottom: 20px;
+}
+
+.image-grid {
+  display: flex;
+  flex-wrap: wrap; /* Позволяет изображениям переноситься на следующую строку */
+  gap: 20px; /* Увеличенный промежуток между изображениями */
+  justify-content: center;
+  max-width: 1200px; /* Общая ширина, чтобы сетка растягивалась */
+  margin: 0 auto; /* Центрирование сетки */
+}
+
+.image-grid img {
+  flex: 1 1 calc(33.333% - 20px); /* Каждый элемент занимает 1/3 строки с учетом промежутков */
+  max-width: 300px; /* Увеличенный максимальный размер */
+  height: 200px; /* Пропорционально увеличенная высота */
+  object-fit: cover; /* Указывает, как изображение должно вписываться в размеры */
+  border-radius: 4px; /* Легкий закругленный край */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.image-grid img:hover {
+  transform: scale(1.1); /* Увеличенное масштабирование при наведении */
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3); /* Более выразительная тень */
+}
