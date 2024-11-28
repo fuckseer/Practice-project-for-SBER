@@ -4,6 +4,7 @@ locals {
 
 variable "iam_token" {
   type = string
+  sensitive = true
 }
 
 variable "cloud_id" {
