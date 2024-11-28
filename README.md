@@ -5,7 +5,6 @@ colorFrom: pink
 colorTo: pink
 sdk: docker
 pinned: false
-app_port: 8080
 ---
 
 # Модель детекции морского мусора

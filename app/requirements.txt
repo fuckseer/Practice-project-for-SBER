@@ -1,5 +1,5 @@
-fastapi>=0.115
-uvicorn[standard]>=0.32
+fastapi
+uvicorn[standard]
 ultralytics
 mlflow
 python-multipart
