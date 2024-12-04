@@ -159,6 +159,7 @@ resource "yandex_compute_instance" "label-studio" {
   boot_disk {
     initialize_params {
       image_id = data.yandex_compute_image.container-optimized-image.id
+      size = 30
     }
   }
   network_interface {
@@ -171,9 +172,9 @@ resource "yandex_compute_instance" "label-studio" {
     memory        = 2
     core_fraction = 50
   }
-  # scheduling_policy {
-  #   preemptible = true
-  # }
+  scheduling_policy {
+    preemptible = true
+  }
   metadata = {
     docker-compose = templatefile("docker-compose.yaml", {
       mlflow_s3_bucket     = yandex_storage_bucket.mlflow.id
