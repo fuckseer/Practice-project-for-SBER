@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+ultralytics
+mlflow
+python-multipart
+python-dotenv
+opencv-python
+boto3
