@@ -27,6 +27,7 @@ MLFLOW_S3_ENDPOINT_URL = os.getenv("MLFLOW_S3_ENDPOINT_URL")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 BUCKET_NAME = os.getenv("BUCKET_NAME", "waste")
+BUCKET_OBJECTS_URL = os.getenv("BUCKET_OBJECTS_URL", "https://storage.yandexcloud.net/waste")
 
 mlflow.set_tracking_uri(uri=MLFLOW_URL)
 
@@ -125,7 +126,10 @@ def predict_status(task_id: str):
     return {"status": "ready"}
 
 
-@app.post("/api/results/{task_id}")
+@app.get("/api/results/{task_id}")
 def results(task_id: str):
     """Получение результатов распознания."""
-    return {"csv": "http://", "images": ["http://"]}
+    images = []
+    for image in [image for image in bucket.objects.filter(Prefix=task_id).limit(11) if Path(image.key).name != "result.csv"][:10]:
+        images.append(Path(BUCKET_OBJECTS_URL) / image.key)
+    return {"csv": Path(BUCKET_OBJECTS_URL) / task_id / "result.csv", "images": images}
