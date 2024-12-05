@@ -1,0 +1,235 @@
+{
+  "name": "waste-detection",
+  "version": "1",
+  "items": [
+    {
+      "type": "http",
+      "name": "docs",
+      "seq": 7,
+      "request": {
+        "url": "{{base_host}}/docs",
+        "method": "GET",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "none",
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {},
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "none"
+        }
+      }
+    },
+    {
+      "type": "http",
+      "name": "import status",
+      "seq": 5,
+      "request": {
+        "url": "{{base_host}}/api/import/status/:import_id",
+        "method": "GET",
+        "headers": [],
+        "params": [
+          {
+            "name": "import_id",
+            "value": "76367adb-418f-4234-92dd-329c8c7e4ee8",
+            "type": "path",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "mode": "multipartForm",
+          "formUrlEncoded": [],
+          "multipartForm": [
+            {
+              "type": "file",
+              "name": "images",
+              "value": [
+                "/Users/angstorm/DevProjects/Practice-project-for-SBER/train/000000000113.jpg",
+                "/Users/angstorm/DevProjects/Practice-project-for-SBER/train/000000000113 copy.jpg",
+                "/Users/angstorm/DevProjects/Practice-project-for-SBER/train/000000000113 copy 2.jpg"
+              ],
+              "enabled": true
+            }
+          ]
+        },
+        "script": {},
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "none"
+        }
+      }
+    },
+    {
+      "type": "http",
+      "name": "import-local",
+      "seq": 5,
+      "request": {
+        "url": "{{base_host}}/api/import/local",
+        "method": "POST",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "multipartForm",
+          "formUrlEncoded": [],
+          "multipartForm": [
+            {
+              "type": "file",
+              "name": "images",
+              "value": [
+                "/Users/angstorm/DevProjects/Practice-project-for-SBER/train/000000000113.jpg",
+                "/Users/angstorm/DevProjects/Practice-project-for-SBER/train/000000000113 copy.jpg",
+                "/Users/angstorm/DevProjects/Practice-project-for-SBER/train/000000000113 copy 2.jpg"
+              ],
+              "enabled": true
+            }
+          ]
+        },
+        "script": {},
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "none"
+        }
+      }
+    },
+    {
+      "type": "http",
+      "name": "predict status",
+      "seq": 4,
+      "request": {
+        "url": "{{base_host}}/api/predict/status/:import_id",
+        "method": "GET",
+        "headers": [],
+        "params": [
+          {
+            "name": "import_id",
+            "value": "76367adb-418f-4234-92dd-329c8c7e4ee8",
+            "type": "path",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "mode": "none",
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {},
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "none"
+        }
+      }
+    },
+    {
+      "type": "http",
+      "name": "predict",
+      "seq": 3,
+      "request": {
+        "url": "{{base_host}}/api/predict/:import_id",
+        "method": "POST",
+        "headers": [],
+        "params": [
+          {
+            "name": "import_id",
+            "value": "76367adb-418f-4234-92dd-329c8c7e4ee8",
+            "type": "path",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "mode": "none",
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {},
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "none"
+        }
+      }
+    },
+    {
+      "type": "http",
+      "name": "results",
+      "seq": 6,
+      "request": {
+        "url": "{{base_host}}/api/results/:task_id",
+        "method": "GET",
+        "headers": [],
+        "params": [
+          {
+            "name": "task_id",
+            "value": "76d8f57c-0507-4958-b3f8-dd77f8b81be9",
+            "type": "path",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "mode": "none",
+          "formUrlEncoded": [],
+          "multipartForm": []
+        },
+        "script": {},
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "none"
+        }
+      }
+    }
+  ],
+  "environments": [
+    {
+      "variables": [
+        {
+          "name": "base_host",
+          "value": "https://angstorm-ocean-waste-detection.hf.space",
+          "enabled": true,
+          "secret": false,
+          "type": "text"
+        }
+      ],
+      "name": "cloud"
+    },
+    {
+      "variables": [
+        {
+          "name": "base_host",
+          "value": "http://localhost:7860",
+          "enabled": true,
+          "secret": false,
+          "type": "text"
+        }
+      ],
+      "name": "local"
+    }
+  ],
+  "brunoConfig": {
+    "version": "1",
+    "name": "waste-detection",
+    "type": "collection",
+    "ignore": [
+      "node_modules",
+      ".git"
+    ]
+  }
+}
