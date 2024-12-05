@@ -1,43 +1,21 @@
-import io
-import os
+from __future__ import annotations
 
-import mlflow
+import os
+import uuid
+from pathlib import Path
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, Response, UploadFile
 from fastapi.responses import HTMLResponse
-from PIL import Image
-from ultralytics import YOLO
+from model import model
+from predict import predict_mock
+from s3 import BUCKET_NAME, BUCKET_OBJECTS_URL, bucket, s3
 
 load_dotenv()
 
 app = FastAPI()
 
-# Константы
-DOWNLOAD_MODEL = os.environ["DOWNLOAD_MODEL"].lower() == "true"
-MLFLOW_URL = os.getenv("MLFLOW_URL", "http://localhost:5000")
-MODEL_NAME = os.getenv("MODEL_NAME", "coco")
-MODEL_TAG = os.getenv("MODEL_TAG", "best")
-MODEL_PATH = f".models/{MODEL_TAG}"
 APP_URL = os.getenv("APP_URL", "http://localhost:7860")
-
-# Настройки MLFlow
-mlflow.set_tracking_uri(uri=MLFLOW_URL)
-
-
-# Загружаем модель
-def get_model(download_model: bool):  # noqa: FBT001
-    """Функция, которая загружает модель."""
-    if download_model:
-        print("The model is loading...")
-        mlflow.artifacts.download_artifacts(
-            f"models:/{MODEL_NAME}@{MODEL_TAG}", dst_path=MODEL_PATH
-        )
-        print("The model is loaded.")
-    return YOLO(f"{MODEL_PATH}/best.pt")
-
-
-model = get_model(DOWNLOAD_MODEL)
-
 root_page = f"""
 <html>
     <body>
@@ -55,18 +33,61 @@ def root():
     return HTMLResponse(content=root_page, status_code=200)
 
 
-@app.post("/predict")
-def predict(image: UploadFile):
-    """Конечная точка для получения предсказания от модели.
+@app.post("/api/import/local")
+def import_local(images: list[UploadFile]):
+    """Импорт нескольких изображений."""
+    import_id = str(uuid.uuid4())
+    for image in images:
+        bucket.upload_fileobj(
+            image.file,
+            str(Path(import_id) / image.filename)
+        )
+    return {"import_id": import_id}
 
-    Input: Изображение image
-    Output: Изображение с выделенными боксами
-    """
-    image_bytes = image.file.read()
-    pil_image = Image.open(io.BytesIO(image_bytes))
-    result = model.predict(pil_image)
-    encoded_image = Image.fromarray(result[0].plot())
-    result_image_bytes = io.BytesIO()
-    encoded_image.save(result_image_bytes, format="PNG")
-    result_image_bytes = result_image_bytes.getvalue()
-    return Response(content=result_image_bytes, media_type="image/png")
+
+def __folder_exists(key):
+    return True
+
+
+@app.get("/api/import/status/{import_id}")
+def import_status(import_id: str):
+    """Проверка статуса импорта."""
+    exists = __folder_exists(import_id)
+    return {"status": "ready"} if exists else \
+        Response({"status": "in process"}, 204)
+
+
+@app.post("/api/predict/{import_id}")
+def predict(import_id: str):
+    """Распознание импортированных изображений."""
+    task_id = str(uuid.uuid4())
+    predict_mock(model, s3, BUCKET_NAME, import_id, task_id)
+    return {"task_id": task_id}
+
+
+@app.get("/api/predict/status/{task_id}")
+def predict_status(task_id: str):
+    """Проверка статуса распознания."""
+    exists = __folder_exists(task_id)
+    return {"status": "ready"} if exists else \
+        Response({"status": "in process"}, 204)
+
+
+def __not_csv(key):
+    return Path(key).suffix != "csv"
+
+
+def __get_task_images(task_id, max_count):
+    objects = bucket.objects.filter(Prefix=task_id).limit(max_count + 1)
+    return [obj for obj in objects if __not_csv(obj.key)][:max_count]
+
+
+@app.get("/api/results/{task_id}")
+def results(task_id: str):
+    """Получение результатов распознания."""
+    base_url = Path(BUCKET_OBJECTS_URL)
+    csv_url = base_url / task_id / "result.csv"
+    image_urls = []
+    for image in __get_task_images(task_id, 10):
+        image_urls.append(base_url / image.key)
+    return {"csv": csv_url, "images": image_urls}
