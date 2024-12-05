@@ -4,60 +4,18 @@ import os
 import uuid
 from pathlib import Path
 
-import boto3
-import mlflow
 from dotenv import load_dotenv
 from fastapi import FastAPI, Response, UploadFile
 from fastapi.responses import HTMLResponse
+from model import model
 from predict import predict_mock
-from ultralytics import YOLO
+from s3 import BUCKET_NAME, BUCKET_OBJECTS_URL, bucket, s3
 
 load_dotenv()
 
 app = FastAPI()
 
-DOWNLOAD_MODEL = os.environ["DOWNLOAD_MODEL"].lower() == "true"
-MLFLOW_URL = os.getenv("MLFLOW_URL", "http://localhost:5000")
-MODEL_NAME = os.getenv("MODEL_NAME", "coco")
-MODEL_TAG = os.getenv("MODEL_TAG", "best")
-MODEL_PATH = f".models/{MODEL_TAG}"
 APP_URL = os.getenv("APP_URL", "http://localhost:7860")
-MLFLOW_S3_ENDPOINT_URL = os.getenv("MLFLOW_S3_ENDPOINT_URL")
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-BUCKET_NAME = os.getenv("BUCKET_NAME", "waste")
-BUCKET_OBJECTS_URL = os.getenv("BUCKET_OBJECTS_URL", "https://storage.yandexcloud.net/waste")
-
-mlflow.set_tracking_uri(uri=MLFLOW_URL)
-
-s3 = boto3.resource(
-    "s3",
-    endpoint_url=MLFLOW_S3_ENDPOINT_URL,
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-)
-bucket = s3.Bucket(BUCKET_NAME)
-
-def get_model(download_model: bool):  # noqa: FBT001
-    """Функция, которая загружает модель."""
-    if download_model:
-        print("The model is loading...")
-        mlflow.artifacts.download_artifacts(
-            f"models:/{MODEL_NAME}@{MODEL_TAG}", dst_path=MODEL_PATH
-        )
-        print("The model is loaded.")
-    return YOLO(f"{MODEL_PATH}/best.pt")
-
-
-s3 = boto3.resource(
-    "s3",
-    endpoint_url=MLFLOW_S3_ENDPOINT_URL,
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-)
-
-model = get_model(DOWNLOAD_MODEL)
-
 root_page = f"""
 <html>
     <body>
