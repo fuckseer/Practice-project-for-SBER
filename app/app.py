@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import os
 import uuid
-from io import StringIO
 from pathlib import Path
 
 import boto3
 import mlflow
-import pandas as pd
 from dotenv import load_dotenv
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, Response, UploadFile
 from fastapi.responses import HTMLResponse
+from predict import predict_mock
 from ultralytics import YOLO
 
 load_dotenv()
@@ -57,24 +56,6 @@ s3 = boto3.resource(
     aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
 )
 
-def predict_mock(yolo_model, s3_bucket, import_id, task_id):
-    """Шаблон функции распознания."""
-    for obj in s3_bucket.objects.filter(Prefix=import_id).limit(10):
-        value = s3.Object(BUCKET_NAME, obj.key).get()["Body"].read()
-        s3.Object(
-            BUCKET_NAME,
-            str(Path(task_id) / Path(obj.key).name)
-        ).put(Body=value)
-
-    d = {"col1": [1, 2], "col2": [3, 4]}
-    df = pd.DataFrame(data=d)
-    csv_buffer = StringIO()
-    df.to_csv(csv_buffer)
-    s3.Object(
-        BUCKET_NAME,
-        str(Path(task_id) / "result.csv")
-    ).put(Body=csv_buffer.getvalue())
-
 model = get_model(DOWNLOAD_MODEL)
 
 root_page = f"""
@@ -106,30 +87,49 @@ def import_local(images: list[UploadFile]):
     return {"import_id": import_id}
 
 
+def __folder_exists(key):
+    return True
+
+
 @app.get("/api/import/status/{import_id}")
 def import_status(import_id: str):
     """Проверка статуса импорта."""
-    return {"status": "ready"}
+    exists = __folder_exists(import_id)
+    return {"status": "ready"} if exists else \
+        Response({"status": "in process"}, 204)
 
 
 @app.post("/api/predict/{import_id}")
 def predict(import_id: str):
     """Распознание импортированных изображений."""
     task_id = str(uuid.uuid4())
-    predict_mock(model, bucket, import_id, task_id)
+    predict_mock(model, s3, BUCKET_NAME, import_id, task_id)
     return {"task_id": task_id}
 
 
 @app.get("/api/predict/status/{task_id}")
 def predict_status(task_id: str):
     """Проверка статуса распознания."""
-    return {"status": "ready"}
+    exists = __folder_exists(task_id)
+    return {"status": "ready"} if exists else \
+        Response({"status": "in process"}, 204)
+
+
+def __not_csv(key):
+    return Path(key).suffix != "csv"
+
+
+def __get_task_images(task_id, max_count):
+    objects = bucket.objects.filter(Prefix=task_id).limit(max_count + 1)
+    return [obj for obj in objects if __not_csv(obj.key)][:max_count]
 
 
 @app.get("/api/results/{task_id}")
 def results(task_id: str):
     """Получение результатов распознания."""
-    images = []
-    for image in [image for image in bucket.objects.filter(Prefix=task_id).limit(11) if Path(image.key).name != "result.csv"][:10]:
-        images.append(Path(BUCKET_OBJECTS_URL) / image.key)
-    return {"csv": Path(BUCKET_OBJECTS_URL) / task_id / "result.csv", "images": images}
+    base_url = Path(BUCKET_OBJECTS_URL)
+    csv_url = base_url / task_id / "result.csv"
+    image_urls = []
+    for image in __get_task_images(task_id, 10):
+        image_urls.append(base_url / image.key)
+    return {"csv": csv_url, "images": image_urls}
