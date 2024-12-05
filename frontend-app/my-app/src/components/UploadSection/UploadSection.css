@@ -178,3 +178,24 @@
 .processed-image:hover {
   transform: scale(1.1);
 }
+
+.status-message {
+  margin-top: 15px;
+  font-weight: bold;
+}
+
+.status-message.in-progress {
+  color: orange;
+}
+
+.status-message.complete {
+  color: green;
+}
+
+.status-message.error {
+  color: red;
+}
+
+.status-message.unknown-status {
+  color: gray;
+}

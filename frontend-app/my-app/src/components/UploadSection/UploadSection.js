@@ -1,4 +1,5 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import axios from "axios";
 import "./UploadSection.css";
 
 const UploadSection = () => {
@@ -7,6 +8,9 @@ const UploadSection = () => {
   const [selectedFiles, setSelectedFiles] = useState([]); // Хранение выбранных файлов
   const [processedImages, setProcessedImages] = useState([]); // Список обработанных изображений
   const [csvLink, setCsvLink] = useState(null); // Ссылка на скачивание CSV-файла
+  const [status, setStatus] = useState(null); // Статус загрузки
+  const [loading, setLoading] = useState(false); // Для отображения процесса загрузки
+
   const fileInputRef = useRef(); // Ссылка на элемент input для файлов
 
   const handleCloudUpload = () => {
@@ -44,19 +48,58 @@ const UploadSection = () => {
       alert("Выберите файлы для загрузки!");
       return;
     }
+
     // Создание объекта FormData для отправки файлов на сервер
     const formData = new FormData();
     selectedFiles.forEach((file) => formData.append("files", file));
 
-    // Эмуляция ответа от бэкэнда
-    console.log("Отправка файлов на бэкэнд:", selectedFiles.map((file) => file.name));
-    setProcessedImages([
-      "/path-to-processed-image3.jpg",
-      "/path-to-processed-image4.jpg",
-    ]); // Замените URL на реальные
-    setCsvLink("/path-to-result.csv"); // Замените URL на реальный
-    alert("Файлы успешно обработаны! Результаты доступны ниже.");
+    // Отправка файлов на сервер
+    axios
+      .post("YOUR_BACKEND_URL", formData, { headers: { "Content-Type": "multipart/form-data" } })
+      .then((response) => {
+        console.log("Файлы успешно загружены", response.data);
+        setStatus(response.data.status); // Статус загрузки (in progress / complete)
+        setLoading(true);
+      })
+      .catch((error) => {
+        console.error("Ошибка при загрузке:", error);
+        setLoading(false);
+      });
   };
+
+  // Функция для запроса статуса загрузки
+  const checkStatus = () => {
+    if (!status || status === "complete") return; // Проверяем статус загрузки
+
+    // Проверяем статус загрузки на сервере
+    axios
+      .get("YOUR_STATUS_URL")
+      .then((response) => {
+        setStatus(response.data.status); // Обновляем статус
+
+        if (response.data.status === "complete") {
+          setProcessedImages([
+            "/path-to-processed-image3.jpg", // Замените на реальные изображения
+            "/path-to-processed-image4.jpg",
+          ]);
+          setCsvLink("/path-to-result.csv"); // Ссылка на скачивание CSV
+        }
+      })
+      .catch((error) => {
+        console.error("Ошибка при проверке статуса:", error);
+      });
+  };
+
+  // Используем useEffect для периодического запроса статуса
+  useEffect(() => {
+    if (status === "in progress") {
+      const interval = setInterval(() => {
+        checkStatus();
+      }, 5000); // Запрос статуса каждые 5 секунд
+
+      return () => clearInterval(interval); // Очистка интервала при размонтировании компонента
+    }
+  }, [status]);
 
   const closeModal = (e) => {
     if (e.target.className === "modal") setShowModal(false);
@@ -64,7 +107,7 @@ const UploadSection = () => {
 
   return (
     <section className="upload-section">
-      <p className="supported-formats">поддерживаемые форматы: jpg, png</p>
+      <p className="supported-formats">Поддерживаемые форматы: jpg, png</p>
       <div className="upload-options">
         <button
           className="orange-button"
@@ -106,32 +149,29 @@ const UploadSection = () => {
         </div>
       )}
 
-      {/* Блок для скачивания обработанного CSV */}
-      {csvLink && (
-        <div className="download-block">
-          <a
-            href={csvLink}
-            download
-            className="csv-download-button"
-          >
-            Скачать результат (CSV)
-          </a>
-        </div>
+      {/* Статус загрузки */}
+      {loading && status === "in progress" && (
+        <p className="status">Загрузка в процессе...</p>
       )}
 
-      {/* Блок для просмотра обработанных изображений */}
-      {processedImages.length > 0 && (
-        <div className="processed-images">
-          <h3>Обработанные изображения:</h3>
-          <div className="image-grid">
-            {processedImages.map((image, index) => (
-              <img
-                key={index}
-                src={image}
-                alt={`Обработанное изображение ${index + 1}`}
-                className="processed-image"
-              />
-            ))}
+      {/* Когда статус "complete", показываем ссылки на CSV и изображения */}
+      {status === "complete" && (
+        <div className="download-section">
+          <a href={csvLink} download className="csv-download-button">
+            Скачать результат (CSV)
+          </a>
+          <div className="processed-images">
+            <h3>Обработанные изображения:</h3>
+            <div className="image-grid">
+              {processedImages.map((image, index) => (
+                <img
+                  key={index}
+                  src={image}
+                  alt={`Обработанное изображение ${index + 1}`}
+                  className="processed-image"
+                />
+              ))}
+            </div>
           </div>
         </div>
       )}
