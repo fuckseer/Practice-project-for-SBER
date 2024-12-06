@@ -1,0 +1,66 @@
+/* body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #335d72;
+}
+
+header {
+  text-align: center;
+  padding: 20px;
+}
+
+h1 {
+  font-size: 36px;
+  color: #00487c;
+}
+
+nav a {
+  margin: 0 10px;
+  text-decoration: none;
+  color: #00487c;
+}
+
+.upload-section {
+  text-align: center;
+  margin: 20px 0;
+}
+
+.upload-option button {
+  background-color: #ffa500;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.upload-option button:hover {
+  background-color: #ff8c00;
+}
+
+.examples {
+  text-align: center;
+  padding: 20px;
+}
+
+.image-grid {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.image-grid img {
+  width: 200px;
+  height: auto;
+  border-radius: 5px;
+}
+
+.faq {
+  padding: 20px;
+}
+
+.faq div {
+  margin-bottom: 10px;
+}
+ */
