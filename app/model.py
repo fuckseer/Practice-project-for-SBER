@@ -11,6 +11,7 @@ MLFLOW_URL = os.getenv("MLFLOW_URL")
 MODEL_NAME = os.getenv("MODEL_NAME")
 MODEL_TAG = os.getenv("MODEL_TAG")
 MODEL_PATH = f".models/{MODEL_TAG}"
+MODEL_CONF = float(os.getenv("MODEL_CONF", "0.001"))
 
 mlflow.set_tracking_uri(uri=MLFLOW_URL)
 

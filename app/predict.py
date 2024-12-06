@@ -5,6 +5,7 @@ from io import StringIO
 from typing import TYPE_CHECKING
 
 import pandas as pd
+from model import MODEL_CONF
 from PIL import Image
 from s3 import BUCKET_OBJECTS_URL, s3_client, s3_resource
 
@@ -89,7 +90,7 @@ def predict(model: YOLO, s3_bucket: str, import_id: str, task_id: str):
     # Получаем список URL к изображениям на S3.
     images_urls = __retrieve_images_urls(s3_bucket, import_id)
     # Отправляем изображения на обработку модели.
-    results = model.predict(images_urls)
+    results = model.predict(images_urls, conf=MODEL_CONF)
     # Отправляем на генерацию итогового DataFrame для отчёта.
     results_data_frame = __generate_dataframe(images_urls, results)
     # Начинаем загрузку DataFrame на S3, в формате CSV.
