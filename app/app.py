@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import uuid
-from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Response, UploadFile
@@ -38,10 +37,7 @@ def import_local(images: list[UploadFile]):
     """Импорт нескольких изображений."""
     import_id = str(uuid.uuid4())
     for image in images:
-        bucket.upload_fileobj(
-            image.file,
-            str(Path(import_id) / image.filename)
-        )
+        bucket.upload_fileobj(image.file, f"{import_id}/{image.filename}")
     return {"import_id": import_id}
 
 
@@ -53,8 +49,11 @@ def __folder_exists(key):
 def import_status(import_id: str):
     """Проверка статуса импорта."""
     exists = __folder_exists(import_id)
-    return {"status": "ready"} if exists else \
-        Response({"status": "in process"}, 204)
+    return (
+        {"status": "ready"}
+        if exists
+        else Response({"status": "in process"}, 204)
+    )
 
 
 @app.post("/api/predict/{import_id}")
@@ -69,12 +68,16 @@ def predict(import_id: str):
 def predict_status(task_id: str):
     """Проверка статуса распознания."""
     exists = __folder_exists(task_id)
-    return {"status": "ready"} if exists else \
-        Response({"status": "in process"}, 204)
+    return (
+        {"status": "ready"}
+        if exists
+        else Response({"status": "in process"}, 204)
+    )
 
 
 def __not_csv(key):
-    return Path(key).suffix != "csv"
+    ext = key.split(".")[-1]
+    return ext != "csv"
 
 
 def __get_task_images(task_id, max_count):
@@ -85,9 +88,9 @@ def __get_task_images(task_id, max_count):
 @app.get("/api/results/{task_id}")
 def results(task_id: str):
     """Получение результатов распознания."""
-    base_url = Path(BUCKET_OBJECTS_URL)
-    csv_url = base_url / task_id / "result.csv"
+    base_url = BUCKET_OBJECTS_URL
+    csv_url = f"{base_url}/{task_id}/result.csv"
     image_urls = []
     for image in __get_task_images(task_id, 10):
-        image_urls.append(base_url / image.key)
+        image_urls.append(f"{base_url}/{image.key}")
     return {"csv": csv_url, "images": image_urls}
