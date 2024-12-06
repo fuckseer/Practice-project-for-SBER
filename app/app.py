@@ -8,8 +8,8 @@ from fastapi import FastAPI, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from model import model
-from predict import predict_mock
-from s3 import BUCKET_NAME, BUCKET_OBJECTS_URL, bucket, s3
+from process import process
+from s3 import BUCKET_NAME, BUCKET_OBJECTS_URL, bucket
 
 load_dotenv()
 
@@ -73,7 +73,7 @@ def import_status(import_id: str):
 def predict(import_id: str):
     """Распознание импортированных изображений."""
     task_id = str(uuid.uuid4())
-    predict_mock(model, s3, BUCKET_NAME, import_id, task_id)
+    process(model, BUCKET_NAME, import_id, task_id)
     return {"task_id": task_id}
 
 

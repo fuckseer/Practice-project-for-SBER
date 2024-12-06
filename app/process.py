@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+import io
 import os
 from io import StringIO
+from typing import TYPE_CHECKING
 
 import boto3
 import pandas as pd
 from dotenv import load_dotenv
-from ultralytics import YOLO
-from ultralytics.engine.results import Results
 from PIL import Image
-import io
+
+if TYPE_CHECKING:
+    from ultralytics import YOLO
+    from ultralytics.engine.results import Results
 
 load_dotenv()
 
@@ -116,14 +119,14 @@ def process(model: YOLO, s3_bucket, import_id, task_id):
 
 
 # Необходимые для процессинга тестовые данные.
-model_test = YOLO(".models/best/best.pt")
-example_import_id = "backend-example-import-id"
-example_task_id = "backend-example-task-id-1"
+# model_test = YOLO(".models/best/best.pt")
+# example_import_id = "backend-example-import-id"
+# example_task_id = "backend-example-task-id-1"
 
 # Запуск проверочной проходки.
-process(
-    model=model_test,
-    s3_bucket="waste",
-    import_id=example_import_id,
-    task_id=example_task_id,
-)
+# process(
+#     model=model_test,
+#     s3_bucket="waste",
+#     import_id=example_import_id,
+#     task_id=example_task_id,
+# )
