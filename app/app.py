@@ -5,6 +5,7 @@ import uuid
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Response, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from model import model
 from predict import predict_mock
@@ -14,18 +15,10 @@ load_dotenv()
 
 app = FastAPI()
 
-from fastapi.middleware.cors import CORSMiddleware
-
-# Разрешаем доступ с порта 3000 (или другого фронтенд-адреса)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Разрешаем доступ с этого домена
-    allow_credentials=True,
-    allow_methods=["*"],  # Разрешаем все методы
-    allow_headers=["*"],  # Разрешаем все заголовки
-)
-
 APP_URL = os.getenv("APP_URL", "http://localhost:7860")
+ALLOWED_URLS = os.getenv("ALLOWED_URLS", "http://localhost:3000").split(",")
+
+
 root_page = f"""
 <html>
     <body>
@@ -35,6 +28,15 @@ root_page = f"""
     </body>
 </html>
 """
+
+# Разрешаем CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_URLS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
