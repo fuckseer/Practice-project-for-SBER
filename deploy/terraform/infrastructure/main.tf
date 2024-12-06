@@ -75,6 +75,17 @@ resource "yandex_iam_service_account_static_access_key" "mlflow" {
   service_account_id = yandex_iam_service_account.mlflow.id
 }
 
+# app
+
+resource "yandex_iam_service_account" "app" {
+  folder_id = var.folder_id
+  name      = "app"
+}
+
+resource "yandex_iam_service_account_static_access_key" "app" {
+  service_account_id = yandex_iam_service_account.app.id
+}
+
 ### Object Storage ###
 
 resource "yandex_storage_bucket" "waste-detection" {
@@ -125,6 +136,28 @@ resource "yandex_storage_bucket" "mlflow" {
     id          = yandex_iam_service_account.mlflow.id
     type        = "CanonicalUser"
     permissions = ["READ", "WRITE"]
+  }  
+  
+  grant {
+    id          = yandex_iam_service_account.app.id
+    type        = "CanonicalUser"
+    permissions = ["READ"]
+  }
+}
+
+resource "yandex_storage_bucket" "app-storage" {
+  bucket_prefix = "app-storage"
+  access_key    = yandex_iam_service_account_static_access_key.cloud-editor.access_key
+  secret_key    = yandex_iam_service_account_static_access_key.cloud-editor.secret_key
+
+  grant {
+    id          = yandex_iam_service_account.app.id
+    type        = "CanonicalUser"
+    permissions = ["READ", "WRITE"]
+  }
+
+  anonymous_access_flags {
+    read = true
   }
 }
 
@@ -168,12 +201,12 @@ resource "yandex_compute_instance" "label-studio" {
     nat_ip_address = yandex_vpc_address.label-studio.external_ipv4_address[0].address
   }
   resources {
-    cores         = 2
-    memory        = 2
-    core_fraction = 50
+    cores         = 4
+    memory        = 4
+    core_fraction = 100
   }
   scheduling_policy {
-    preemptible = true
+    preemptible = false
   }
   metadata = {
     docker-compose = templatefile("docker-compose.yaml", {

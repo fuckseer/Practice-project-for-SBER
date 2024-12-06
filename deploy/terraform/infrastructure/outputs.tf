@@ -16,6 +16,14 @@ output "access-keys" {
       access_key = yandex_iam_service_account_static_access_key.team3.access_key
       secret_key = yandex_iam_service_account_static_access_key.team3.secret_key
     }
+    "mlflow" : {
+      access_key = yandex_iam_service_account_static_access_key.mlflow.access_key
+      secret_key = yandex_iam_service_account_static_access_key.mlflow.secret_key
+    }
+    "app" : {
+      access_key = yandex_iam_service_account_static_access_key.app.access_key
+      secret_key = yandex_iam_service_account_static_access_key.app.secret_key
+    }
   }
   sensitive = true
 }
