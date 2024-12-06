@@ -7,6 +7,9 @@ import boto3
 import pandas as pd
 from dotenv import load_dotenv
 from ultralytics import YOLO
+from ultralytics.engine.results import Results
+from PIL import Image
+import io
 
 load_dotenv()
 
@@ -76,6 +79,28 @@ def upload_processed_dataframe(df: pd.DataFrame, s3_bucket, task_id):
     )
 
 
+def choose_images(processed_data_batch: list[Results]) -> list[(str, bytes)]:
+    result = []
+    for image_data in processed_data_batch:
+        name = image_data.path
+        encoded_image = Image.fromarray(image_data.plot())
+        result_image_bytes = io.BytesIO()
+        encoded_image.save(result_image_bytes, format="PNG")
+        result.append((name, result_image_bytes.getvalue()))
+
+    return result
+
+
+def upload_images_to_s3(s3_bucket: str, task_id: str, images: list[(str, bytes)]):
+    result = []
+    for name, data in images:
+        resource.Object(s3_bucket, f"{task_id}/{name}").put(
+            Body=data
+    )
+
+    return result
+
+
 def process(model: YOLO, s3_bucket, import_id, task_id):
     # Получаем список URL к изображениям на S3.
     images_urls = retrieve_images_urls(s3_bucket, import_id)
@@ -85,6 +110,9 @@ def process(model: YOLO, s3_bucket, import_id, task_id):
     results_data_frame = generate_dataframe(images_urls, results)
     # Начинаем загрузку DataFrame на S3, в формате CSV.
     upload_processed_dataframe(results_data_frame, s3_bucket, task_id)
+
+    example_images = choose_images(results)
+    upload_images_to_s3(s3_bucket, task_id, example_images)
 
 
 # Необходимые для процессинга тестовые данные.
