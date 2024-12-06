@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import io
 from io import StringIO
 from typing import TYPE_CHECKING
 
+import cv2
 import pandas as pd
 from model import MODEL_CONF
-from PIL import Image
 from s3 import BUCKET_OBJECTS_URL, s3_client, s3_resource
 
 if TYPE_CHECKING:
@@ -62,14 +61,17 @@ def __upload_processed_dataframe(
     )
 
 
+def __render_image(image_data: Results) -> bytes:
+    arr = image_data.plot()
+    _, img_encoded = cv2.imencode(".jpg", arr)
+    return img_encoded.tobytes()
+
+
 def __choose_images(processed_data_batch: list[Results]) -> list[(str, bytes)]:
     result = []
     for image_data in processed_data_batch:
         name = image_data.path
-        encoded_image = Image.fromarray(image_data.plot())
-        result_image_bytes = io.BytesIO()
-        encoded_image.save(result_image_bytes, format="PNG")
-        result.append((name, result_image_bytes.getvalue()))
+        result.append((name, __render_image(image_data)))
 
     return result
 
