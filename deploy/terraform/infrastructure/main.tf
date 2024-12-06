@@ -148,7 +148,13 @@ resource "yandex_storage_bucket" "mlflow" {
     id          = yandex_iam_service_account.mlflow.id
     type        = "CanonicalUser"
     permissions = ["READ", "WRITE"]
-  }  
+  }
+    
+  grant {
+    id          = yandex_iam_service_account.storage-editor.id
+    type        = "CanonicalUser"
+    permissions = ["READ", "WRITE"]
+  }
   
   grant {
     id          = yandex_iam_service_account.app.id
@@ -229,12 +235,12 @@ resource "yandex_compute_instance" "label-studio" {
     nat_ip_address = yandex_vpc_address.label-studio.external_ipv4_address[0].address
   }
   resources {
-    cores         = 4
-    memory        = 4
-    core_fraction = 100
+    cores         = 2
+    memory        = 2
+    core_fraction = 50
   }
   scheduling_policy {
-    preemptible = false
+    preemptible = true
   }
   metadata = {
     docker-compose = templatefile("docker-compose.yaml", {
