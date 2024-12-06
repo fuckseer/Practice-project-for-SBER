@@ -6,13 +6,14 @@ from ultralytics import YOLO
 
 load_dotenv()
 
-DOWNLOAD_MODEL = os.environ["DOWNLOAD_MODEL"].lower() == "true"
-MLFLOW_URL = os.getenv("MLFLOW_URL", "http://localhost:5000")
-MODEL_NAME = os.getenv("MODEL_NAME", "coco")
-MODEL_TAG = os.getenv("MODEL_TAG", "best")
+DOWNLOAD_MODEL = os.getenv("DOWNLOAD_MODEL").lower() == "true"
+MLFLOW_URL = os.getenv("MLFLOW_URL")
+MODEL_NAME = os.getenv("MODEL_NAME")
+MODEL_TAG = os.getenv("MODEL_TAG")
 MODEL_PATH = f".models/{MODEL_TAG}"
 
 mlflow.set_tracking_uri(uri=MLFLOW_URL)
+
 
 def get_model(download_model: bool):  # noqa: FBT001
     """Функция, которая загружает модель."""
@@ -23,5 +24,6 @@ def get_model(download_model: bool):  # noqa: FBT001
         )
         print("The model is loaded.")
     return YOLO(f"{MODEL_PATH}/best.pt")
+
 
 model = get_model(DOWNLOAD_MODEL)

@@ -8,8 +8,7 @@ load_dotenv()
 MLFLOW_S3_ENDPOINT_URL = os.getenv("MLFLOW_S3_ENDPOINT_URL")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-BUCKET_NAME = os.getenv("BUCKET_NAME", "waste")
-BUCKET_OBJECTS_URL = os.getenv("BUCKET_OBJECTS_URL", "https://storage.yandexcloud.net/waste")
+BUCKET_NAME = os.getenv("BUCKET_NAME")
 
 s3_resource = boto3.resource(
     "s3",

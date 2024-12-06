@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 from PIL import Image
-from s3 import s3_client, s3_resource
+from s3 import MLFLOW_S3_ENDPOINT_URL, s3_client, s3_resource
 
 if TYPE_CHECKING:
     from ultralytics import YOLO
@@ -24,7 +24,7 @@ def __retrieve_images_urls(s3_bucket: str, import_id: str) -> list[str]:
     # тоже возвращается после list_objects_v2(),
     # исключаем её из результирующего списка.
     return [
-        f"https://storage.yandexcloud.net/{s3_bucket}/{item['Key']}"
+        f"{MLFLOW_S3_ENDPOINT_URL}/{s3_bucket}/{item['Key']}"
         for item in response["Contents"]
         if item["Key"] != import_id and item.get("Size", 1) > 0
     ]
