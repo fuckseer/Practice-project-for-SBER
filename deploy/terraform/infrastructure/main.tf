@@ -15,11 +15,6 @@ resource "yandex_iam_service_account_static_access_key" "cloud-editor" {
   service_account_id = yandex_iam_service_account.cloud-editor.id
 }
 
-resource "yandex_iam_service_account" "label-studio" {
-  folder_id = var.folder_id
-  name      = "label-studio"
-}
-
 # storage-editor
 
 resource "yandex_iam_service_account" "storage-editor" {
@@ -86,6 +81,17 @@ resource "yandex_iam_service_account_static_access_key" "app" {
   service_account_id = yandex_iam_service_account.app.id
 }
 
+# label-studio
+
+resource "yandex_iam_service_account" "label-studio" {
+  folder_id = var.folder_id
+  name      = "label-studio"
+}
+
+resource "yandex_iam_service_account_static_access_key" "label-studio" {
+  service_account_id = yandex_iam_service_account.label-studio.id
+}
+
 ### Object Storage ###
 
 resource "yandex_storage_bucket" "waste-detection" {
@@ -113,6 +119,12 @@ resource "yandex_storage_bucket" "waste-detection" {
 
   grant {
     id          = yandex_iam_service_account.team3.id
+    type        = "CanonicalUser"
+    permissions = ["READ"]
+  }
+
+  grant {
+    id          = yandex_iam_service_account.label-studio.id
     type        = "CanonicalUser"
     permissions = ["READ"]
   }
@@ -161,6 +173,22 @@ resource "yandex_storage_bucket" "app-storage" {
   }
 }
 
+resource "yandex_storage_bucket" "app" {
+  bucket = "waste-detection"
+  access_key    = yandex_iam_service_account_static_access_key.cloud-editor.access_key
+  secret_key    = yandex_iam_service_account_static_access_key.cloud-editor.secret_key
+
+  grant {
+    id          = yandex_iam_service_account.storage-editor.id
+    type        = "CanonicalUser"
+    permissions = ["READ", "WRITE"]
+  }
+
+  website {
+    index_document = "index.html"
+  }
+}
+
 ### Virtual Private Cloud ###
 
 data "yandex_vpc_network" "default" {
@@ -192,7 +220,7 @@ resource "yandex_compute_instance" "label-studio" {
   boot_disk {
     initialize_params {
       image_id = data.yandex_compute_image.container-optimized-image.id
-      size = 30
+      size = 50
     }
   }
   network_interface {
@@ -213,6 +241,9 @@ resource "yandex_compute_instance" "label-studio" {
       mlflow_s3_bucket     = yandex_storage_bucket.mlflow.id
       mlflow_s3_key_id     = yandex_iam_service_account_static_access_key.mlflow.access_key
       mlflow_s3_key_secret = yandex_iam_service_account_static_access_key.mlflow.secret_key
+      app_s3_bucket     = yandex_storage_bucket.app-storage.id
+      app_s3_key_id     = yandex_iam_service_account_static_access_key.app.access_key
+      app_s3_key_secret = yandex_iam_service_account_static_access_key.app.secret_key
     })
     ssh-keys = "angstorm:${var.ssh_pub}"
   }
