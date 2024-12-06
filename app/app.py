@@ -2,31 +2,23 @@ from __future__ import annotations
 
 import os
 import uuid
-from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Response, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from model import model
-from predict import predict_mock
-from s3 import BUCKET_NAME, BUCKET_OBJECTS_URL, bucket, s3
+from predict import predict
+from s3 import BUCKET_NAME, BUCKET_OBJECTS_URL, bucket
 
 load_dotenv()
 
 app = FastAPI()
 
-from fastapi.middleware.cors import CORSMiddleware
-
-# Разрешаем доступ с порта 3000 (или другого фронтенд-адреса)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Разрешаем доступ с этого домена
-    allow_credentials=True,
-    allow_methods=["*"],  # Разрешаем все методы
-    allow_headers=["*"],  # Разрешаем все заголовки
-)
-
 APP_URL = os.getenv("APP_URL", "http://localhost:7860")
+ALLOWED_URLS = os.getenv("ALLOWED_URLS", "http://localhost:3000").split(",")
+
+
 root_page = f"""
 <html>
     <body>
@@ -36,6 +28,15 @@ root_page = f"""
     </body>
 </html>
 """
+
+# Разрешаем CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_URLS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
@@ -49,10 +50,7 @@ def import_local(images: list[UploadFile]):
     """Импорт нескольких изображений."""
     import_id = str(uuid.uuid4())
     for image in images:
-        bucket.upload_fileobj(
-            image.file,
-            str(Path(import_id) / image.filename)
-        )
+        bucket.upload_fileobj(image.file, f"{import_id}/{image.filename}")
     return {"import_id": import_id}
 
 
@@ -64,15 +62,18 @@ def __folder_exists(key):
 def import_status(import_id: str):
     """Проверка статуса импорта."""
     exists = __folder_exists(import_id)
-    return {"status": "ready"} if exists else \
-        Response({"status": "in process"}, 204)
+    return (
+        {"status": "ready"}
+        if exists
+        else Response({"status": "in process"}, 204)
+    )
 
 
 @app.post("/api/predict/{import_id}")
-def predict(import_id: str):
+def predict_images(import_id: str):
     """Распознание импортированных изображений."""
     task_id = str(uuid.uuid4())
-    predict_mock(model, s3, BUCKET_NAME, import_id, task_id)
+    predict(model, BUCKET_NAME, import_id, task_id)
     return {"task_id": task_id}
 
 
@@ -80,12 +81,16 @@ def predict(import_id: str):
 def predict_status(task_id: str):
     """Проверка статуса распознания."""
     exists = __folder_exists(task_id)
-    return {"status": "ready"} if exists else \
-        Response({"status": "in process"}, 204)
+    return (
+        {"status": "ready"}
+        if exists
+        else Response({"status": "in process"}, 204)
+    )
 
 
 def __not_csv(key):
-    return Path(key).suffix != "csv"
+    ext = key.split(".")[-1]
+    return ext != "csv"
 
 
 def __get_task_images(task_id, max_count):
@@ -96,9 +101,9 @@ def __get_task_images(task_id, max_count):
 @app.get("/api/results/{task_id}")
 def results(task_id: str):
     """Получение результатов распознания."""
-    base_url = Path(BUCKET_OBJECTS_URL)
-    csv_url = base_url / task_id / "result.csv"
+    base_url = BUCKET_OBJECTS_URL
+    csv_url = f"{base_url}/{task_id}/result.csv"
     image_urls = []
     for image in __get_task_images(task_id, 10):
-        image_urls.append(base_url / image.key)
+        image_urls.append(f"{base_url}/{image.key}")
     return {"csv": csv_url, "images": image_urls}
