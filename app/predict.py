@@ -37,15 +37,15 @@ def __generate_dataframe(
     data = []
     # image_data представляет из себя объект типа Results
     for url, image_data in zip(urls, processed_data_batch):
-        # У Results есть поля path и boxes,
-        # хранящие пути до файлов и найденные YOLO боксы.
+        # У Results есть поле boxes, хранящее найденные YOLO боксы.
         name = url.split("/")[-1]
         # Будем сохранять нормированные боксы в формате x1y1x2y2.
         boxes = image_data.boxes.xyxyn
         # Заполняем список данными для DataFrame, по схеме предполагаемой CSV.
         for box in boxes:
+            x1, y1, x2, y2 = box.tolist()
             data.append(
-                {"photo": name, "boxes": ", ".join(map(str, box.tolist()))}
+                {"photo": name, "x1": x1, "y1": y1, "x2": x2, "y2": y2}
             )
 
     return pd.DataFrame(data)
