@@ -58,7 +58,7 @@
 .upload-section p {
   font-size: 0.8rem;
   color: #ffffff;
-  margin: 5px 0;
+  margin: 10px 0;
 }
 
 /* Стили для второстепенного текста в кнопке */
@@ -134,6 +134,7 @@
 .csv-download-button {
   display: inline-block;
   background-color: #4caf50;
+  margin: 20px;
   color: white;
   padding: 10px 20px;
   font-size: 14px;
@@ -156,6 +157,7 @@
 .processed-images h3 {
   font-size: 18px;
   color: #ffffff;
+  margin: 10px;
 }
 
 .image-grid {
@@ -177,25 +179,4 @@
 
 .processed-image:hover {
   transform: scale(1.1);
-}
-
-.status-message {
-  margin-top: 15px;
-  font-weight: bold;
-}
-
-.status-message.in-progress {
-  color: orange;
-}
-
-.status-message.complete {
-  color: green;
-}
-
-.status-message.error {
-  color: red;
-}
-
-.status-message.unknown-status {
-  color: gray;
 }

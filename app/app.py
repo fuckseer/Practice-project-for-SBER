@@ -15,6 +15,17 @@ load_dotenv()
 
 app = FastAPI()
 
+from fastapi.middleware.cors import CORSMiddleware
+
+# Разрешаем доступ с порта 3000 (или другого фронтенд-адреса)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Разрешаем доступ с этого домена
+    allow_credentials=True,
+    allow_methods=["*"],  # Разрешаем все методы
+    allow_headers=["*"],  # Разрешаем все заголовки
+)
+
 APP_URL = os.getenv("APP_URL", "http://localhost:7860")
 root_page = f"""
 <html>

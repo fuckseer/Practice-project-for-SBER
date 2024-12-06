@@ -3,42 +3,23 @@ import axios from "axios";
 import "./UploadSection.css";
 
 const UploadSection = () => {
-  const [showModal, setShowModal] = useState(false); // Контроль модального окна
-  const [cloudLink, setCloudLink] = useState(""); // Ссылка на облачное хранилище
-  const [selectedFiles, setSelectedFiles] = useState([]); // Хранение выбранных файлов
-  const [processedImages, setProcessedImages] = useState([]); // Список обработанных изображений
-  const [csvLink, setCsvLink] = useState(null); // Ссылка на скачивание CSV-файла
-  const [status, setStatus] = useState(null); // Статус загрузки
-  const [loading, setLoading] = useState(false); // Для отображения процесса загрузки
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [cloudLink, setCloudLink] = useState("");
+  const [importId, setImportId] = useState(null);
+  const [taskId, setTaskId] = useState(null);
+  const [statusMessage, setStatusMessage] = useState(null);
+  const [processedImages, setProcessedImages] = useState([]);
+  const [csvLink, setCsvLink] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const fileInputRef = useRef();
 
-  const fileInputRef = useRef(); // Ссылка на элемент input для файлов
-
-  const handleCloudUpload = () => {
-    if (!cloudLink) {
-      alert("Введите ссылку на файл!");
-      return;
-    }
-
-    // Эмуляция отправки ссылки и получения результата
-    console.log("Отправка ссылки на бэкэнд:", cloudLink);
-    setCloudLink(""); // Очистить поле после отправки
-    setShowModal(false); // Закрыть модальное окно
-
-    // Эмуляция ответа от бэкэнда
-    setProcessedImages([
-      "/path-to-processed-image1.jpg",
-      "/path-to-processed-image2.jpg",
-    ]); // Замените URL на реальные
-    setCsvLink("/path-to-result.csv"); // Замените URL на реальный
-    alert("Обработка завершена! Результаты доступны ниже.");
-  };
-
+  // Загрузка файлов с устройства
   const handleFileUploadClick = () => {
-    fileInputRef.current.click(); // Имитация нажатия на input для выбора файлов
+    fileInputRef.current.click();
   };
 
   const handleFileChange = (event) => {
-    const files = Array.from(event.target.files); // Получение выбранных файлов
+    const files = Array.from(event.target.files);
     setSelectedFiles(files);
     console.log("Выбраны файлы:", files.map((file) => file.name));
   };
@@ -49,70 +30,122 @@ const UploadSection = () => {
       return;
     }
 
-    // Создание объекта FormData для отправки файлов на сервер
     const formData = new FormData();
-    selectedFiles.forEach((file) => formData.append("files", file));
+    selectedFiles.forEach((file) => formData.append("images", file));
 
-    // Отправка файлов на сервер
+    setStatusMessage("Загрузка файлов...");
+
     axios
-      .post("YOUR_BACKEND_URL", formData, { headers: { "Content-Type": "multipart/form-data" } })
+      .post("http://localhost:7860/api/import/local", formData)
       .then((response) => {
-        console.log("Файлы успешно загружены", response.data);
-        setStatus(response.data.status); // Статус загрузки (in progress / complete)
-        setLoading(true);
+        const { import_id } = response.data;
+        console.log("Импорт завершён, import_id:", import_id);
+        setImportId(import_id);
+        setStatusMessage("Файлы загружены. Начинается обработка...");
+        checkImportStatus(import_id);
       })
       .catch((error) => {
-        console.error("Ошибка при загрузке:", error);
-        setLoading(false);
+        console.error("Ошибка при загрузке файлов:", error);
+        setStatusMessage("Ошибка загрузки файлов.");
       });
   };
 
-  // Функция для запроса статуса загрузки
-  const checkStatus = () => {
-    if (!status || status === "complete") return; // Проверяем статус загрузки
+  // Проверка статуса импорта
+  const checkImportStatus = (importId) => {
+    const interval = setInterval(() => {
+      axios
+        .get(`http://localhost:7860/api/import/status/${importId}`)
+        .then((response) => {
+          if (response.data.status === "ready") {
+            clearInterval(interval);
+            startPrediction(importId);
+          }
+        })
+        .catch((error) => {
+          console.error("Ошибка при проверке статуса импорта:", error);
+        });
+    }, 3000);
+  };
 
-    // Проверяем статус загрузки на сервере
+  // Запуск предсказания
+  const startPrediction = (importId) => {
+    setStatusMessage("Обработка изображений...");
+
     axios
-      .get("YOUR_STATUS_URL")
+      .post(`http://localhost:7860/api/predict/${importId}`)
       .then((response) => {
-        setStatus(response.data.status); // Обновляем статус
-
-        if (response.data.status === "complete") {
-          setProcessedImages([
-            "/path-to-processed-image3.jpg", // Замените на реальные изображения
-            "/path-to-processed-image4.jpg",
-          ]);
-          setCsvLink("/path-to-result.csv"); // Ссылка на скачивание CSV
-        }
+        const { task_id } = response.data;
+        console.log("Начато предсказание, task_id:", task_id);
+        setTaskId(task_id);
+        checkPredictionStatus(task_id);
       })
       .catch((error) => {
-        console.error("Ошибка при проверке статуса:", error);
+        console.error("Ошибка при запуске предсказания:", error);
+        setStatusMessage("Ошибка обработки изображений.");
       });
   };
 
-  // Используем useEffect для периодического запроса статуса
-  useEffect(() => {
-    if (status === "in progress") {
-      const interval = setInterval(() => {
-        checkStatus();
-      }, 5000); // Запрос статуса каждые 5 секунд
+  // Проверка статуса предсказания
+  const checkPredictionStatus = (taskId) => {
+    const interval = setInterval(() => {
+      axios
+        .get(`http://localhost:7860/api/predict/status/${taskId}`)
+        .then((response) => {
+          if (response.data.status === "ready") {
+            clearInterval(interval);
+            fetchResults(taskId);
+          }
+        })
+        .catch((error) => {
+          console.error("Ошибка при проверке статуса предсказания:", error);
+        });
+    }, 3000);
+  };
 
-      return () => clearInterval(interval); // Очистка интервала при размонтировании компонента
+  // Получение результатов
+  const fetchResults = (taskId) => {
+    axios
+      .get(`http://localhost:7860/api/results/${taskId}`)
+      .then((response) => {
+        const { csv, images } = response.data;
+        console.log("Результаты получены:", csv, images);
+        setCsvLink(csv);
+        setProcessedImages(images);
+        setStatusMessage("Обработка завершена!");
+      })
+      .catch((error) => {
+        console.error("Ошибка при получении результатов:", error);
+        setStatusMessage("Ошибка получения результатов.");
+      });
+  };
+
+  // Эмуляция обработки загрузки из облака
+  const handleCloudUpload = () => {
+    if (!cloudLink) {
+      alert("Введите ссылку на файл!");
+      return;
     }
-  }, [status]);
 
-  const closeModal = (e) => {
-    if (e.target.className === "modal") setShowModal(false);
+    setStatusMessage("Загрузка файлов из облачного хранилища...");
+    setCloudLink("");
+    setShowModal(false);
+
+    // Эмуляция завершения процесса
+    setTimeout(() => {
+      setProcessedImages([
+        "/path-to-processed-image1.jpg",
+        "/path-to-processed-image2.jpg",
+      ]);
+      setCsvLink("/path-to-result.csv");
+      setStatusMessage("Обработка завершена! Результаты доступны ниже.");
+    }, 3000);
   };
 
   return (
     <section className="upload-section">
       <p className="supported-formats">Поддерживаемые форматы: jpg, png</p>
       <div className="upload-options">
-        <button
-          className="orange-button"
-          onClick={() => setShowModal(true)} // Открыть модальное окно
-        >
+        <button className="orange-button" onClick={() => setShowModal(true)}>
           <span className="main-text">Загрузить</span>
           <br />
           <span className="sub-text">из облачного хранилища</span>
@@ -128,34 +161,29 @@ const UploadSection = () => {
           ref={fileInputRef}
           accept=".jpg,.png"
           multiple
-          style={{ display: "none" }} // Скрытый input для файлов
+          style={{ display: "none" }}
           onChange={handleFileChange}
         />
       </div>
 
-      {/* Отображение количества загруженных файлов */}
+            {/* Отображение количества загруженных файлов */}
       {selectedFiles.length > 0 && (
         <p className="file-count">
           Выбрано файлов: {selectedFiles.length}
         </p>
       )}
 
-      {/* Кнопка "Отправить", отображается только если выбраны файлы */}
       {selectedFiles.length > 0 && (
         <div className="file-upload-button">
           <button className="upload-button" onClick={handleFileUpload}>
-            Отправить
+            Запустить предсказание
           </button>
         </div>
       )}
 
-      {/* Статус загрузки */}
-      {loading && status === "in progress" && (
-        <p className="status">Загрузка в процессе...</p>
-      )}
+      {statusMessage && <p className="status">{statusMessage}</p>}
 
-      {/* Когда статус "complete", показываем ссылки на CSV и изображения */}
-      {status === "complete" && (
+      {csvLink && (
         <div className="download-section">
           <a href={csvLink} download className="csv-download-button">
             Скачать результат (CSV)
@@ -176,9 +204,8 @@ const UploadSection = () => {
         </div>
       )}
 
-      {/* Модальное окно для облачного хранилища */}
       {showModal && (
-        <div className="modal" onClick={closeModal}>
+        <div className="modal" onClick={(e) => e.target.className === "modal" && setShowModal(false)}>
           <div className="modal-content">
             <h2>Введите ссылку на S3-хранилище</h2>
             <input
