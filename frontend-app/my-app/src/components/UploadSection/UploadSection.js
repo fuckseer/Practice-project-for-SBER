@@ -5,6 +5,8 @@ import "./UploadSection.css";
 const UploadSection = () => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [cloudLink, setCloudLink] = useState("");
+  const [accessKey, setAccessKey] = useState("");
+  const [secretKey, setSecretKey] = useState("");
   const [importId, setImportId] = useState(null);
   const [taskId, setTaskId] = useState(null);
   const [statusMessage, setStatusMessage] = useState(null);
@@ -12,6 +14,46 @@ const UploadSection = () => {
   const [csvLink, setCsvLink] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const fileInputRef = useRef();
+
+    // Функция очистки данных
+  const handleClearProcessed = () => {
+      setProcessedImages([]);
+      setCsvLink(null);
+      setStatusMessage(null);
+      setSelectedFiles([]);
+    };
+
+  // Закрытие модального окна при клике за его пределы
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showModal && !event.target.closest(".modal-content")) {
+        setShowModal(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showModal]);
+
+
+    // Чтение taskId из URL при загрузке страницы
+    useEffect(() => {
+      const params = new URLSearchParams(window.location.search);
+      const savedTaskId = params.get("taskId");
+      if (savedTaskId) {
+        setTaskId(savedTaskId);
+        checkPredictionStatus(savedTaskId);
+      }
+    }, []);
+  
+    // Функция для обновления URL с taskId
+    const updateUrlWithTaskId = (newTaskId) => {
+      const params = new URLSearchParams(window.location.search);
+      params.set("taskId", newTaskId);
+      window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+    };
 
   // Загрузка файлов с устройства
   const handleFileUploadClick = () => {
@@ -77,6 +119,7 @@ const UploadSection = () => {
         const { task_id } = response.data;
         console.log("Начато предсказание, task_id:", task_id);
         setTaskId(task_id);
+        updateUrlWithTaskId(task_id);
         checkPredictionStatus(task_id);
       })
       .catch((error) => {
@@ -85,22 +128,23 @@ const UploadSection = () => {
       });
   };
 
-  // Проверка статуса предсказания
-  const checkPredictionStatus = (taskId) => {
-    const interval = setInterval(() => {
-      axios
-        .get(`http://localhost:7860/api/predict/status/${taskId}`)
+    // Проверка статуса предсказания
+    const checkPredictionStatus = (taskId) => {
+      setStatusMessage("Проверка статуса...");
+      axios.get(`http://localhost:7860/api/predict/status/${taskId}`)
         .then((response) => {
           if (response.data.status === "ready") {
-            clearInterval(interval);
             fetchResults(taskId);
+          } else {
+            setStatusMessage("Обработка продолжается...");
+            setTimeout(() => checkPredictionStatus(taskId), 3000); // Рекурсивный вызов для повторной проверки
           }
         })
         .catch((error) => {
-          console.error("Ошибка при проверке статуса предсказания:", error);
+          console.error("Ошибка при проверке статуса задачи:", error);
+          setStatusMessage("Ошибка проверки статуса.");
         });
-    }, 3000);
-  };
+    };
 
   // Получение результатов
   const fetchResults = (taskId) => {
@@ -119,26 +163,45 @@ const UploadSection = () => {
       });
   };
 
-  // Эмуляция обработки загрузки из облака
-  const handleCloudUpload = () => {
-    if (!cloudLink) {
-      alert("Введите ссылку на файл!");
+
+  const handleCloudUpload = async () => {
+    if (!cloudLink || !accessKey || !secretKey) {
+      alert("Введите все данные для подключения!");
       return;
     }
-
-    setStatusMessage("Загрузка файлов из облачного хранилища...");
-    setCloudLink("");
-    setShowModal(false);
-
-    // Эмуляция завершения процесса
-    setTimeout(() => {
-      setProcessedImages([
-        "/path-to-processed-image1.jpg",
-        "/path-to-processed-image2.jpg",
-      ]);
-      setCsvLink("/path-to-result.csv");
-      setStatusMessage("Обработка завершена! Результаты доступны ниже.");
-    }, 3000);
+  
+    // Формируем данные для отправки
+    const payload = {
+      cloudLink,
+      accessKey,
+      secretKey,
+    };
+  
+    try {
+      setStatusMessage("Отправка данных на сервер...");
+      const response = await axios.post("http://localhost:7860/api/upload", payload);
+  
+      // Проверяем успешный статус ответа
+      if (response.status === 200) {
+        const { images, csv } = response.data;
+        console.log("Успешная загрузка:", response.data);
+  
+        // Обновляем состояние с результатами
+        setProcessedImages(images || []);
+        setCsvLink(csv || "");
+        setStatusMessage("Обработка завершена!");
+      } else {
+        setStatusMessage("Не удалось загрузить данные. Проверьте ввод.");
+      }
+    } catch (error) {
+      console.error("Ошибка при отправке данных на сервер:", error);
+      setStatusMessage("Ошибка при подключении к серверу.");
+    } finally {
+      setCloudLink("");
+      setAccessKey("");
+      setSecretKey("");
+      setShowModal(false);
+    }
   };
 
   return (
@@ -166,7 +229,6 @@ const UploadSection = () => {
         />
       </div>
 
-            {/* Отображение количества загруженных файлов */}
       {selectedFiles.length > 0 && (
         <p className="file-count">
           Выбрано файлов: {selectedFiles.length}
@@ -204,15 +266,36 @@ const UploadSection = () => {
         </div>
       )}
 
+      {/* Кнопка очистки обработанных данных появляется только после получения результата */}
+      {processedImages.length > 0 && (
+        <button className="clear-processed-button" onClick={handleClearProcessed}>
+          Очистить
+        </button>
+      )}
+
       {showModal && (
-        <div className="modal" onClick={(e) => e.target.className === "modal" && setShowModal(false)}>
+        <div className="modal">
           <div className="modal-content">
-            <h2>Введите ссылку на S3-хранилище</h2>
+            <h2>Введите данные для подключения к S3-хранилищу</h2>
             <input
               type="text"
-              placeholder="https://example.com/your-file"
+              placeholder="Ссылка на файл в S3"
               value={cloudLink}
               onChange={(e) => setCloudLink(e.target.value)}
+              className="cloud-link-input"
+            />
+            <input
+              type="text"
+              placeholder="Access Key"
+              value={accessKey}
+              onChange={(e) => setAccessKey(e.target.value)}
+              className="cloud-link-input"
+            />
+            <input
+              type="password"
+              placeholder="Secret Key"
+              value={secretKey}
+              onChange={(e) => setSecretKey(e.target.value)}
               className="cloud-link-input"
             />
             <button className="upload-button" onClick={handleCloudUpload}>
