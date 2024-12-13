@@ -4,6 +4,7 @@ from io import StringIO
 from typing import TYPE_CHECKING
 
 import cv2
+import re
 import pandas as pd
 from model import MODEL_CONF
 from s3 import BUCKET_OBJECTS_URL, s3_client, s3_resource
@@ -13,11 +14,48 @@ if TYPE_CHECKING:
     from ultralytics.engine.results import Results
 
 
+def __format_GPS(full_gps: str) -> str:
+    """Форматирование ExifTags.IFD.GPSInfo строки в строку формата GPS координат:
+    'dd°mm'ss"(N/S) dd°mm'ss"(W/E)' с градусами, минутами и секундами.
+
+    Args:
+        full_gps: Строковое представление словаря ExifTags.IFD.GPSInfo значений.
+
+    Returns:
+        Форматированная строка, представляющая GPS координаты в градусах, минутах, секундах с направлением,
+        или переданную строку, в случае ошибки форматирования.
+    
+    ## Example:
+    full_gps = {1: 'N', 2: (4.0, 0.0, 36.6771599), 3: 'W', 4: (25.0, 58.0, 54.73848), 5: b'\x00', 6: 19.153, 7: (13.0, 50.0, 13.0), 29: '2022:03:15'};\n
+    output = 4°00'36.7"N 25°58'54.7"W
+    """
+    pattern = r"\{1: '([NS])', 2: \((\d+)\.\d+, (\d+)\.\d+, (\d+\.\d+)\), 3: '([EW])', 4: \((\d+)\.\d+, (\d+)\.\d+, (\d+\.\d+)\)"
+    match = re.search(pattern, full_gps)
+    if not match:
+        # Если совпадений по регулярке нет - значит исходные данные о GPS
+        # отсутствовали, либо были неполные (отсутствовали ширина и долгота).
+        return full_gps
+    # Извлекаем значения ширины и долготы.
+    lat_dir, lat_deg, lat_min, lat_sec = match.group(1), int(match.group(2)), int(match.group(3)), float(match.group(4))
+    lon_dir, lon_deg, lon_min, lon_sec = match.group(5), int(match.group(6)), int(match.group(7)), float(match.group(8))
+    
+    def format_dms(degrees, minutes, seconds, direction):
+        """Приводит к обозначеному формату"""
+        return f"{degrees}°{minutes:02}'{seconds:.1f}\"{direction}"
+    
+    formatted_coordinates = (
+        f"{format_dms(lat_deg, lat_min, lat_sec, lat_dir)} "
+        f"{format_dms(lon_deg, lon_min, lon_sec, lon_dir)}"
+    )
+    return formatted_coordinates
+
+
 def __retrieve_metadata(s3_bucket: str, obj_key: str) -> str:
     head = s3_client.head_object(Bucket=s3_bucket, Key=obj_key)
     metadata = head['Metadata']
     GPS_metadata = metadata['Gps']
-    return GPS_metadata
+    formatted_GPS = __format_GPS(GPS_metadata)
+    return formatted_GPS
 
 
 def __retrieve_images_urls_with_metadata(
@@ -39,12 +77,6 @@ def __retrieve_images_urls_with_metadata(
             url = f"{BUCKET_OBJECTS_URL}/{item['Key']}"
             data[url] = metadata
     return data
-    
-    # return [
-    #     f"{BUCKET_OBJECTS_URL}/{item['Key']}"
-    #     for item in response["Contents"]
-    #     if item["Key"] != import_id and item.get("Size", 1) > 0
-    # ]
 
 
 def __generate_dataframe(
@@ -61,7 +93,7 @@ def __generate_dataframe(
         # Будем сохранять нормированные боксы в формате x1y1x2y2.
         boxes = image_data.boxes.xyxyn
         # Достаем соответствующие изображению метаданные о GPS.
-        gps = images_data[url]        
+        gps = images_data[url]    
         # Заполняем список данными для DataFrame, по схеме предполагаемой CSV.
         for box in boxes:
             x1, y1, x2, y2 = box.tolist()
@@ -115,7 +147,7 @@ def predict(model: YOLO, s3_bucket: str, import_id: str, task_id: str):
         s3_bucket,
         import_id
     )
-    # Извлекаем только URLs.
+    # Извлекаем URLs.
     images_urls = list(images_data.keys())
     # Отправляем изображения на обработку модели.
     results = model.predict(images_urls, conf=MODEL_CONF)
