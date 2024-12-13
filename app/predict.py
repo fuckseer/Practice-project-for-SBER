@@ -60,10 +60,12 @@ def __format_GPS(full_gps: str) -> str:
 def __retrieve_metadata(s3_bucket: str, obj_key: str) -> str:
     head = s3_client.head_object(Bucket=s3_bucket, Key=obj_key)
     metadata = head['Metadata']
+    if len(metadata) == 0:
+        return ""
     GPS_metadata = metadata['Gps']
     if GPS_metadata:
-        formatted_GPS = __format_GPS(GPS_metadata)
-        return formatted_GPS
+       formatted_GPS = __format_GPS(GPS_metadata)
+       return formatted_GPS
     return ""
 
 
