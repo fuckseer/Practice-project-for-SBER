@@ -4,12 +4,9 @@ from io import StringIO
 from typing import TYPE_CHECKING
 
 import cv2
-<<<<<<< Updated upstream
-=======
 import boto3
 import os
 import re
->>>>>>> Stashed changes
 import pandas as pd
 from model import MODEL_CONF
 from sqlmodel import select, Session, create_engine
@@ -24,11 +21,6 @@ DB_CONNECTION_STRING = os.getenv("POSTGRESQL_CONNECTION_STRING", "")
 engine = create_engine(DB_CONNECTION_STRING)
 
 
-<<<<<<< Updated upstream
-def __retrieve_images_urls(s3_bucket: str, import_id: str) -> list[str]:
-    # Получаем список всех объектов в бакете внутри директории import_id
-    response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=import_id)
-=======
 def __format_GPS(full_gps: str) -> str:
     """Форматирование ExifTags.IFD.GPSInfo строки в строку формата GPS координат:
     'dd°mm'ss"(N/S) dd°mm'ss"(W/E)' с градусами, минутами и секундами.
@@ -92,21 +84,13 @@ def __retrieve_images_urls_with_metadata(
         ).list_objects_v2(Bucket=s3_bucket, Prefix=folder)
 
 
->>>>>>> Stashed changes
     if "Contents" not in response:
-        return []
+        return {}
 
     # Конструируем URL до объектов в директории.
     # Так как при фильтрации Prefix'ом, путь до самой import_id директории
     # тоже возвращается после list_objects_v2(),
     # исключаем её из результирующего списка.
-<<<<<<< Updated upstream
-    return [
-        f"{BUCKET_OBJECTS_URL}/{item['Key']}"
-        for item in response["Contents"]
-        if item["Key"] != import_id and item.get("Size", 1) > 0
-    ]
-=======
     data = {}
     for item in response['Contents']:
         if item['Key'] != import_id and item.get("Size", 1) > 0:
@@ -117,11 +101,12 @@ def __retrieve_images_urls_with_metadata(
                 url = f"{s3_cloud_credentials.endpoint_url}/{s3_bucket}/{item['Key']}"
             data[url] = metadata
     return data
->>>>>>> Stashed changes
 
 
 def __generate_dataframe(
-    urls: list[str], processed_data_batch: list[Results]
+    urls: list[str],
+    images_data: dict[str, str], 
+    processed_data_batch: list[Results]
 ) -> pd.DataFrame:
     # Данные для построения DataFrame
     data = []
@@ -131,11 +116,13 @@ def __generate_dataframe(
         name = url.split("/")[-1]
         # Будем сохранять нормированные боксы в формате x1y1x2y2.
         boxes = image_data.boxes.xyxyn
+        # Достаем соответствующие изображению метаданные о GPS.
+        gps = images_data[url]    
         # Заполняем список данными для DataFrame, по схеме предполагаемой CSV.
         for box in boxes:
             x1, y1, x2, y2 = box.tolist()
             data.append(
-                {"photo": name, "x1": x1, "y1": y1, "x2": x2, "y2": y2}
+                {"photo": name, "x1": x1, "y1": y1, "x2": x2, "y2": y2, "GPS": gps}
             )
 
     return pd.DataFrame(data)
@@ -179,12 +166,21 @@ def predict_local(model: YOLO, s3_bucket: str, import_id: str, task_id: str):
     Получает изображения из s3://{s3_bucket}/{import_id}.
     Результаты загружаются в s3://{s3_bucket}/{task_id}.
     """
-    # Получаем список URL к изображениям на S3.
-    images_urls = __retrieve_images_urls(s3_bucket, import_id)
+    # Получаем словарь {URL : Метаданные} изображений на S3.
+    images_data = __retrieve_images_urls_with_metadata(
+        s3_bucket,
+        import_id
+    )
+    # Извлекаем URLs.
+    images_urls = list(images_data.keys())
     # Отправляем изображения на обработку модели.
     results = model.predict(images_urls, conf=MODEL_CONF)
     # Отправляем на генерацию итогового DataFrame для отчёта.
-    results_data_frame = __generate_dataframe(images_urls, results)
+    results_data_frame = __generate_dataframe(
+        images_urls,
+        images_data, 
+        results
+    )
     # Начинаем загрузку DataFrame на S3, в формате CSV.
     __upload_processed_dataframe(results_data_frame, s3_bucket, task_id)
 

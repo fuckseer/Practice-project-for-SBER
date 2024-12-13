@@ -3,17 +3,10 @@ from __future__ import annotations
 import os
 import uuid
 
-<<<<<<< Updated upstream
-from dotenv import load_dotenv
-from fastapi import FastAPI, Response, UploadFile
-=======
 import boto3
-from io import BytesIO
-from typing import Annotated
 from dotenv import load_dotenv
 from fastapi import FastAPI, Response, UploadFile, HTTPException, Depends
 from PIL import Image, ExifTags
->>>>>>> Stashed changes
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from model import model
@@ -76,12 +69,34 @@ def root():
     return HTMLResponse(content=root_page, status_code=200)
 
 
+def __extract_gps_metadata(image_content) -> str:
+    try:
+        exif_data = image_content.getexif()
+        gps_ifd = exif_data.get_ifd(ExifTags.IFD.GPSInfo)
+        if not gps_ifd:
+            return ''
+        return str(gps_ifd)
+    except Exception as e:
+        print(f'Error occured: {e}')
+        return ''
+
+
 @app.post("/api/import/local")
 def import_local(images: list[UploadFile]):
     """Импорт нескольких изображений."""
     import_id = str(uuid.uuid4())
     for image in images:
-        bucket.upload_fileobj(image.file, f"{import_id}/{image.filename}")
+        try:
+            image_content = Image.open(image.file)
+            gps_metadata = __extract_gps_metadata(image_content)
+            image.file.seek(0)
+            bucket.upload_fileobj(
+                image.file, 
+                f"{import_id}/{image.filename}",
+                ExtraArgs={'Metadata': {'Gps': gps_metadata}}
+            )
+        except Exception as e:
+            return {'Failed to upload: ': f'{image.filename} with error {str(e)}'}
     return {"import_id": import_id}
 
 
