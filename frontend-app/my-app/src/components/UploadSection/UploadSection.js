@@ -7,6 +7,7 @@ const UploadSection = () => {
   const [cloudLink, setCloudLink] = useState("");
   const [accessKey, setAccessKey] = useState("");
   const [secretKey, setSecretKey] = useState("");
+  const [s3PathToFolder, setS3PathToFolder] = useState("");
   const [importId, setImportId] = useState(null);
   const [taskId, setTaskId] = useState(null);
   const [statusMessage, setStatusMessage] = useState(null);
@@ -163,47 +164,55 @@ const UploadSection = () => {
       });
   };
 
+ // Облачная загрузка файлов
+ const handleCloudUpload = async () => {
+  if (!cloudLink || !accessKey || !secretKey) {
+    alert("Введите все данные для подключения!");
+    return;
+  }
 
-  const handleCloudUpload = async () => {
-    if (!cloudLink || !accessKey || !secretKey) {
-      alert("Введите все данные для подключения!");
-      return;
-    }
-  
-    // Формируем данные для отправки
-    const payload = {
-      cloudLink,
-      accessKey,
-      secretKey,
-    };
-  
-    try {
-      setStatusMessage("Отправка данных на сервер...");
-      const response = await axios.post("http://localhost:7860/api/upload", payload);
-  
-      // Проверяем успешный статус ответа
-      if (response.status === 200) {
-        const { images, csv } = response.data;
-        console.log("Успешная загрузка:", response.data);
-  
-        // Обновляем состояние с результатами
-        setProcessedImages(images || []);
-        setCsvLink(csv || "");
-        setStatusMessage("Обработка завершена!");
-      } else {
-        setStatusMessage("Не удалось загрузить данные. Проверьте ввод.");
-      }
-    } catch (error) {
-      console.error("Ошибка при отправке данных на сервер:", error);
-      setStatusMessage("Ошибка при подключении к серверу.");
-    } finally {
-      setCloudLink("");
-      setAccessKey("");
-      setSecretKey("");
-      setShowModal(false);
-    }
+  const payload = {
+    endpoint_url: cloudLink,
+    access_key: accessKey,
+    secret_key: secretKey,
+    s3_path_to_folder: cloudLink, // можно уточнить путь
   };
 
+  try {
+    setStatusMessage("Загрузка данных из облака...");
+    const response = await axios.post("http://localhost:7860/api/import/cloud", payload);
+
+    const { import_id } = response.data;
+    console.log("Импорт завершён, import_id:", import_id);
+    setImportId(import_id);
+
+    startCloudPrediction(import_id);
+  } catch (error) {
+    console.error("Ошибка при загрузке из облака:", error);
+    setStatusMessage("Ошибка подключения к облаку.");
+  } finally {
+    setShowModal(false);
+  }
+};
+
+// Запуск предсказания из облака
+const startCloudPrediction = (importId) => {
+  setStatusMessage("Запуск обработки изображений из облака...");
+
+  axios
+    .post(`http://localhost:7860/api/predict_cloud/${importId}`)
+    .then((response) => {
+      const { task_id } = response.data;
+      console.log("Обработка изображений начата, task_id:", task_id);
+      setTaskId(task_id);
+      checkPredictionStatus(task_id);
+    })
+    .catch((error) => {
+      console.error("Ошибка при запуске обработки из облака:", error);
+      setStatusMessage("Ошибка обработки из облака.");
+    });
+};
+  
   return (
     <section className="upload-section">
       <p className="supported-formats">Поддерживаемые форматы: jpg, png</p>
@@ -279,7 +288,7 @@ const UploadSection = () => {
             <h2>Введите данные для подключения к S3-хранилищу</h2>
             <input
               type="text"
-              placeholder="Ссылка на файл в S3"
+              placeholder="Ссылка на S3"
               value={cloudLink}
               onChange={(e) => setCloudLink(e.target.value)}
               className="cloud-link-input"
@@ -298,6 +307,14 @@ const UploadSection = () => {
               onChange={(e) => setSecretKey(e.target.value)}
               className="cloud-link-input"
             />
+            <input
+            type="text"
+            placeholder="Путь к папке на S3"
+            value={s3PathToFolder}
+            onChange={(e) => setS3PathToFolder(e.target.value)}
+            className="cloud-link-input"
+          />          
+            
             <button className="upload-button" onClick={handleCloudUpload}>
               Отправить
             </button>
