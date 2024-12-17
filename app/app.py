@@ -3,20 +3,26 @@ from __future__ import annotations
 import os
 import uuid
 
+import boto3
 from dotenv import load_dotenv
-from fastapi import FastAPI, Response, UploadFile
+from fastapi import FastAPI, Response, UploadFile, HTTPException, Depends
+from PIL import Image, ExifTags
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from model import model
-from predict import predict
+from predict import predict_local, predict_cloud
+from contextlib import asynccontextmanager
 from s3 import BUCKET_NAME, BUCKET_OBJECTS_URL, bucket
+from db_models import S3Request, S3Credentials
+from sqlmodel import SQLModel, Session, create_engine
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
 
 load_dotenv()
 
-app = FastAPI()
 
 APP_URL = os.getenv("APP_URL", "http://localhost:7860")
 ALLOWED_URLS = os.getenv("ALLOWED_URLS", "http://localhost:3000").split(",")
+DB_CONNECTION_STRING = os.getenv("POSTGRESQL_CONNECTION_STRING", "")
 
 
 root_page = f"""
@@ -29,6 +35,20 @@ root_page = f"""
 </html>
 """
 
+
+@asynccontextmanager
+async def db_create_lifespan_event(app: FastAPI):
+    # Выполнится перед началом работы приложения.
+    # Используется взамен устаревшего on.startup()
+    # https://fastapi.tiangolo.com/advanced/events/#lifespan-function
+    __create_db_and_tables()
+    yield
+
+
+app = FastAPI(lifespan=db_create_lifespan_event)
+engine = create_engine(DB_CONNECTION_STRING)
+
+
 # Разрешаем CORS
 app.add_middleware(
     CORSMiddleware,
@@ -39,10 +59,26 @@ app.add_middleware(
 )
 
 
+def __create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
+
+
 @app.get("/")
 def root():
     """Страница, возвращаемая по корню сайта."""
     return HTMLResponse(content=root_page, status_code=200)
+
+
+def __extract_gps_metadata(image_content) -> str:
+    try:
+        exif_data = image_content.getexif()
+        gps_ifd = exif_data.get_ifd(ExifTags.IFD.GPSInfo)
+        if not gps_ifd:
+            return ''
+        return str(gps_ifd)
+    except Exception as e:
+        print(f'Error occured: {e}')
+        return ''
 
 
 @app.post("/api/import/local")
@@ -50,7 +86,59 @@ def import_local(images: list[UploadFile]):
     """Импорт нескольких изображений."""
     import_id = str(uuid.uuid4())
     for image in images:
-        bucket.upload_fileobj(image.file, f"{import_id}/{image.filename}")
+        try:
+            image_content = Image.open(image.file)
+            gps_metadata = __extract_gps_metadata(image_content)
+            image.file.seek(0)
+            bucket.upload_fileobj(
+                image.file, 
+                f"{import_id}/{image.filename}",
+                ExtraArgs={'Metadata': {'Gps': gps_metadata}}
+            )
+        except Exception as e:
+            return {'Failed to upload: ': f'{image.filename} with error {str(e)}'}
+    return {"import_id": import_id}
+
+
+@app.post("/api/import/cloud")
+def import_cloud(request: S3Request):
+    import_id = str(uuid.uuid4())
+    try:
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=request.endpoint_url,
+            aws_access_key_id=request.access_key,
+            aws_secret_access_key=request.secret_key
+        )
+        # Проверка доступа к бакету.
+        bucket_name = request.s3_path_to_folder.split("/")[0]
+        # Для выполнения list_objects_v2(Bucket=bucket_name) нужны права на чтение.
+        # Не скачивает файлы.
+        s3_client.list_objects_v2(Bucket=bucket_name)
+    except (NoCredentialsError, PartialCredentialsError):
+        raise HTTPException(status_code=400, detail='Неверные учетные данные AWS.')
+    except ClientError as e:
+        raise HTTPException(status_code=400, detail=f'Ошибка соединения с S3: {e.response}')
+    
+    with Session(engine) as session:
+        existing_entry = session.query(
+            S3Credentials
+        ).filter(S3Credentials.s3_path_to_folder == request.s3_path_to_folder).first()
+        if existing_entry:
+            #TODO: Обработать поведение, когда одна и та же ссылка передается снова.
+            # Если данные уже обработаны, то лучше возвращаться ссылку на готовый эксперимент
+            # (Ссылка с query params значениями, пока не реализована).
+            raise HTTPException(status_code=400, detail='Запись об этих данных уже сохранялась.')
+        
+        credentials_entry = S3Credentials(
+            id=import_id,
+            s3_path_to_folder=request.s3_path_to_folder,
+            endpoint_url=request.endpoint_url,
+            access_key=request.access_key,
+            secret_key=request.secret_key
+        )
+        session.add(credentials_entry)
+        session.commit()
     return {"import_id": import_id}
 
 
@@ -73,7 +161,15 @@ def import_status(import_id: str):
 def predict_images(import_id: str):
     """Распознание импортированных изображений."""
     task_id = str(uuid.uuid4())
-    predict(model, BUCKET_NAME, import_id, task_id)
+    predict_local(model, BUCKET_NAME, import_id, task_id)
+    return {"task_id": task_id}
+
+
+@app.post("/api/predict_cloud/{import_id}")
+def predict_images(import_id: str):
+    """Распознание изображений сохраненных на S3."""
+    task_id = str(uuid.uuid4())
+    predict_cloud(model, BUCKET_NAME, import_id, task_id)
     return {"task_id": task_id}
 
 
