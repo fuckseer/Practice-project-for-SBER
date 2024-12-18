@@ -9,6 +9,7 @@ import os
 import re
 import pandas as pd
 from model import MODEL_CONF
+from regex_patterns import PARSE_GPS_TAGS_PATTERN
 from sqlmodel import select, Session, create_engine
 from db_models import S3ClientData
 from s3 import BUCKET_OBJECTS_URL, s3_client, s3_resource
@@ -36,8 +37,7 @@ def __format_GPS(full_gps: str) -> str:
     full_gps = {1: 'N', 2: (4.0, 0.0, 36.6771599), 3: 'W', 4: (25.0, 58.0, 54.73848), 5: b'\x00', 6: 19.153, 7: (13.0, 50.0, 13.0), 29: '2022:03:15'};\n
     output = 4°00'36.7"N 25°58'54.7"W
     """
-    pattern = r"\{1: '([NS])', 2: \((\d+)\.\d+, (\d+)\.\d+, (\d+\.\d+)\), 3: '([EW])', 4: \((\d+)\.\d+, (\d+)\.\d+, (\d+\.\d+)\)"
-    match = re.search(pattern, full_gps)
+    match = re.search(PARSE_GPS_TAGS_PATTERN, full_gps)
     if not match:
         # Если совпадений по регулярке нет - значит исходные данные о GPS
         # отсутствовали, либо были неполные (отсутствовали ширина и долгота).
