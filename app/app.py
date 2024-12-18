@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import uuid
 
 import boto3
@@ -12,9 +13,10 @@ from fastapi.responses import HTMLResponse
 from model import model
 from predict import predict_local, predict_cloud
 from contextlib import asynccontextmanager
+from regex_patterns import PARSE_S3_COMPONENTS_PATTERN
 from s3 import BUCKET_NAME, BUCKET_OBJECTS_URL, bucket
-from db_models import S3Request, S3Credentials
-from sqlmodel import SQLModel, Session, create_engine
+from db_models import S3Request, S3ClientData
+from sqlmodel import SQLModel, Session, create_engine, select
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
 
 load_dotenv()
@@ -81,6 +83,22 @@ def __extract_gps_metadata(image_content) -> str:
         return ''
 
 
+def __extract_subdirectories_path(
+        full_path: str,
+        endpoint: str,
+        bucket: str,
+        final_folder: str
+) -> str:
+    """Извлекает путь между bucket и до final_folder"""
+    start_marker = f"{endpoint}/{bucket}/"
+    end_marker = f"/{final_folder}"
+
+    start_idx = full_path.find(start_marker) + len(start_marker)
+    end_idx = full_path.find(end_marker)
+    
+    return full_path[start_idx:end_idx]
+
+
 @app.post("/api/import/local")
 def import_local(images: list[UploadFile]):
     """Импорт нескольких изображений."""
@@ -102,40 +120,65 @@ def import_local(images: list[UploadFile]):
 
 @app.post("/api/import/cloud")
 def import_cloud(request: S3Request):
-    import_id = str(uuid.uuid4())
     try:
+        match = re.match(PARSE_S3_COMPONENTS_PATTERN, request.s3_path_to_folder)
+        if match:
+            endpoint_url = match.group(1)
+            bucket_name = match.group(2)
+            folder_to_predict_from = match.group(4)
+        else:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Неверный формат S3 URL: {request.s3_path_to_folder}. Ожидаемый формат: https://endpoint_url/bucket/.../folder"
+            )
+        
+        # Проверка доступа к бакету.
+        # Для выполнения list_objects_v2(Bucket=bucket_name) нужны права на чтение.
+        # Не скачивает файлы.
         s3_client = boto3.client(
             's3',
-            endpoint_url=request.endpoint_url,
+            endpoint_url=endpoint_url,
             aws_access_key_id=request.access_key,
             aws_secret_access_key=request.secret_key
         )
-        # Проверка доступа к бакету.
-        bucket_name = request.s3_path_to_folder.split("/")[0]
-        # Для выполнения list_objects_v2(Bucket=bucket_name) нужны права на чтение.
-        # Не скачивает файлы.
         s3_client.list_objects_v2(Bucket=bucket_name)
     except (NoCredentialsError, PartialCredentialsError):
-        raise HTTPException(status_code=400, detail='Неверные учетные данные AWS.')
+        raise HTTPException(status_code=400, detail='Неверные учетные данные S3.')
     except ClientError as e:
         raise HTTPException(status_code=400, detail=f'Ошибка соединения с S3: {e.response}')
     
     with Session(engine) as session:
-        existing_entry = session.query(
-            S3Credentials
-        ).filter(S3Credentials.s3_path_to_folder == request.s3_path_to_folder).first()
+        existing_entry = session.exec(
+            select(S3ClientData)
+            .where(S3ClientData.full_path == request.s3_path_to_folder)
+        ).first()
         if existing_entry:
             #TODO: Обработать поведение, когда одна и та же ссылка передается снова.
             # Если данные уже обработаны, то лучше возвращаться ссылку на готовый эксперимент
             # (Ссылка с query params значениями, пока не реализована).
             raise HTTPException(status_code=400, detail='Запись об этих данных уже сохранялась.')
         
-        credentials_entry = S3Credentials(
+        import_id = str(uuid.uuid4())
+        full_path=request.s3_path_to_folder
+        access_key=request.access_key
+        secret_key=request.secret_key
+        # Извлекаем путь между бакетом и до конечной папки.
+        subdirectories_path = __extract_subdirectories_path(
+            full_path=full_path,
+            endpoint=endpoint_url,
+            bucket=bucket_name,
+            final_folder=folder_to_predict_from
+        )
+        # Создаем запись в БД.
+        credentials_entry = S3ClientData(
             id=import_id,
-            s3_path_to_folder=request.s3_path_to_folder,
-            endpoint_url=request.endpoint_url,
-            access_key=request.access_key,
-            secret_key=request.secret_key
+            full_path=full_path,
+            subdirectories_path=subdirectories_path,
+            folder=folder_to_predict_from,
+            bucket=bucket_name,
+            endpoint_url=endpoint_url,
+            access_key=access_key,
+            secret_key=secret_key
         )
         session.add(credentials_entry)
         session.commit()
