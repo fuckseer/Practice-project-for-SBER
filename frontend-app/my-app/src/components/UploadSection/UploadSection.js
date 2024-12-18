@@ -7,7 +7,6 @@ const UploadSection = () => {
   const [cloudLink, setCloudLink] = useState("");
   const [accessKey, setAccessKey] = useState("");
   const [secretKey, setSecretKey] = useState("");
-  const [s3PathToFolder, setS3PathToFolder] = useState("");
   const [importId, setImportId] = useState(null);
   const [taskId, setTaskId] = useState(null);
   const [statusMessage, setStatusMessage] = useState(null);
@@ -175,7 +174,6 @@ const UploadSection = () => {
     endpoint_url: cloudLink,
     access_key: accessKey,
     secret_key: secretKey,
-    s3_path_to_folder: cloudLink, // можно уточнить путь
   };
 
   try {
@@ -288,7 +286,7 @@ const startCloudPrediction = (importId) => {
             <h2>Введите данные для подключения к S3-хранилищу</h2>
             <input
               type="text"
-              placeholder="Ссылка на S3"
+              placeholder="https://storage.yandexcloud.net/{бакет}/{папка}"
               value={cloudLink}
               onChange={(e) => setCloudLink(e.target.value)}
               className="cloud-link-input"
@@ -306,14 +304,7 @@ const startCloudPrediction = (importId) => {
               value={secretKey}
               onChange={(e) => setSecretKey(e.target.value)}
               className="cloud-link-input"
-            />
-            <input
-            type="text"
-            placeholder="Путь к папке на S3"
-            value={s3PathToFolder}
-            onChange={(e) => setS3PathToFolder(e.target.value)}
-            className="cloud-link-input"
-          />          
+            />      
             
             <button className="upload-button" onClick={handleCloudUpload}>
               Отправить
