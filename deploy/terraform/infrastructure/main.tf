@@ -213,6 +213,21 @@ resource "yandex_vpc_address" "label-studio" {
   }
 }
 
+### Container Registry ###
+
+resource "yandex_container_registry" "default" {
+  name      = "waste-detection"
+}
+
+resource "yandex_container_registry_iam_binding" "pull-all" {
+  registry_id = yandex_container_registry.default.id
+  role        = "container-registry.images.puller"
+
+  members = [
+    "userAccount:${var.user_id}"
+  ]
+}
+
 ### Compute Cloud ###
 
 data "yandex_compute_image" "container-optimized-image" {

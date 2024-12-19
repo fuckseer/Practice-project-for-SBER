@@ -2,6 +2,10 @@ locals {
   main_zone = "ru-central1-b"
 }
 
+variable "user_id" {
+  type = string
+}
+
 variable "iam_token" {
   type = string
   sensitive = true
