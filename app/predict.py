@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from ultralytics import YOLO
     from ultralytics.engine.results import Results 
 
-DB_CONNECTION_STRING = os.getenv("POSTGRESQL_CONNECTION_STRING", "")
+DB_CONNECTION_STRING = os.getenv("POSTGRESQL_CONNECTION_STRING", 'sqlite:///waste.db')
 engine = create_engine(DB_CONNECTION_STRING)
 
 

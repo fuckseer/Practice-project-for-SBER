@@ -24,8 +24,7 @@ load_dotenv()
 
 APP_URL = os.getenv("APP_URL", "http://localhost:7860")
 ALLOWED_URLS = os.getenv("ALLOWED_URLS", "http://localhost:3000").split(",")
-DB_CONNECTION_STRING = os.getenv("POSTGRESQL_CONNECTION_STRING", "")
-
+DB_CONNECTION_STRING = os.getenv("POSTGRESQL_CONNECTION_STRING", 'sqlite:///waste.db')
 
 root_page = f"""
 <html>
