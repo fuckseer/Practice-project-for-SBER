@@ -170,6 +170,7 @@ const UploadSection = () => {
     return;
   }
 
+    // Формируем данные для отправки
   const payload = {
     endpoint_url: cloudLink,
     access_key: accessKey,
@@ -305,7 +306,6 @@ const startCloudPrediction = (importId) => {
               onChange={(e) => setSecretKey(e.target.value)}
               className="cloud-link-input"
             />      
-            
             <button className="upload-button" onClick={handleCloudUpload}>
               Отправить
             </button>
