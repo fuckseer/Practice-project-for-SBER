@@ -6,3 +6,6 @@ python-multipart
 python-dotenv
 opencv-python
 boto3
+sqlmodel
+psycopg2-binary
+dramatiq[rabbitmq, watch]
