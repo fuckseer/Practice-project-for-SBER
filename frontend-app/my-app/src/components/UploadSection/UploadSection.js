@@ -78,7 +78,7 @@ const UploadSection = () => {
     setStatusMessage("Загрузка файлов...");
 
     axios
-      .post("http://localhost:7860/api/import/local", formData)
+      .post("/api/import/local", formData)
       .then((response) => {
         const { import_id } = response.data;
         console.log("Импорт завершён, import_id:", import_id);
@@ -96,7 +96,7 @@ const UploadSection = () => {
   const checkImportStatus = (importId) => {
     const interval = setInterval(() => {
       axios
-        .get(`http://localhost:7860/api/import/status/${importId}`)
+        .get(`/api/import/status/${importId}`)
         .then((response) => {
           if (response.data.status === "ready") {
             clearInterval(interval);
@@ -114,7 +114,7 @@ const UploadSection = () => {
     setStatusMessage("Обработка изображений...");
 
     axios
-      .post(`http://localhost:7860/api/predict/${importId}`)
+      .post(`/api/predict/${importId}`)
       .then((response) => {
         const { task_id } = response.data;
         console.log("Начато предсказание, task_id:", task_id);
@@ -131,7 +131,7 @@ const UploadSection = () => {
     // Проверка статуса предсказания
     const checkPredictionStatus = (taskId) => {
       setStatusMessage("Проверка статуса...");
-      axios.get(`http://localhost:7860/api/predict/status/${taskId}`)
+      axios.get(`/api/predict/status/${taskId}`)
         .then((response) => {
           if (response.data.status === "ready") {
             fetchResults(taskId);
@@ -149,7 +149,7 @@ const UploadSection = () => {
   // Получение результатов
   const fetchResults = (taskId) => {
     axios
-      .get(`http://localhost:7860/api/results/${taskId}`)
+      .get(`/api/results/${taskId}`)
       .then((response) => {
         const { csv, images } = response.data;
         console.log("Результаты получены:", csv, images);
@@ -180,7 +180,7 @@ const handleCloudUpload = async () => {
 
   try {
     setStatusMessage("Загрузка данных из облака...");
-    const response = await axios.post("http://localhost:7860/api/import/cloud", payload);
+    const response = await axios.post("/api/import/cloud", payload);
 
     const { import_id } = response.data;
     console.log("Импорт завершён, import_id:", import_id);
@@ -201,7 +201,7 @@ const startCloudPrediction = (importId) => {
   setStatusMessage("Запуск обработки изображений из облака...");
 
   axios
-    .post(`http://localhost:7860/api/predict_cloud/${importId}`)
+    .post(`/api/predict_cloud/${importId}`)
     .then((response) => {
       const { task_id } = response.data;
       console.log("Обработка изображений начата, task_id:", task_id);
