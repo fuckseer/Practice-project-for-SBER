@@ -13,6 +13,9 @@ site-sync:
 ssh-infrastructure:
 	ssh -i .ssh/yandex -l angstorm 158.160.17.1
 
+ssh-model:
+	ssh -i .ssh/yandex -l angstorm 84.201.164.133
+
 build:
 	docker build --platform="linux/amd64" -t angstorm/waste-detection:${BUILD_VERSION} .
 
