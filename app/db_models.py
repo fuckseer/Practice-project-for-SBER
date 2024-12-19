@@ -38,9 +38,6 @@ class S3ClientData(SQLModel, table=True):
     secret_key: str
 
 
-#TODO: Сделать еще одну модель для отслеживания статусов
-# распознаний пикч.
-
 # Модель таблицы для отслеживания статусов импорта.
 class ImportImageJob(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -49,3 +46,14 @@ class ImportImageJob(SQLModel, table=True):
     status: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+#TODO: С отслеживанием статусов распознания нужно поработать.
+class PredictImageJob(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    import_id: str = Field(index=True)
+    task_id: str
+    status: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    

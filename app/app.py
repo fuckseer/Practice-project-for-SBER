@@ -6,18 +6,14 @@ import re
 import uuid
 import boto3
 import actors
-import tempfile
 import dramatiq
 
 from model import model
 from dotenv import load_dotenv
-from PIL import Image, ExifTags
-from predict import predict_cloud
-from dramatiq.message import set_encoder
 from contextlib import asynccontextmanager
-from dramatiq.encoder import PickleEncoder
 from fastapi.responses import HTMLResponse
 from sqlmodel import SQLModel, Session, select
+from predict import predict_cloud, predict_local
 from fastapi.middleware.cors import CORSMiddleware
 from dramatiq.brokers.rabbitmq import RabbitmqBroker
 from regex_patterns import PARSE_S3_COMPONENTS_PATTERN
@@ -54,6 +50,8 @@ async def db_create_lifespan_event(app: FastAPI):
     yield
 
 
+#TODO: Брокер нужно настроить, чтобы он не пытался одну и ту же задачу постоянно повторять
+# меня на локалке это запарило, но я конечно тот еще смешарик, не шарю.
 broker = RabbitmqBroker(url=BROKER_URL)
 dramatiq.set_broker(broker)
 app = FastAPI(lifespan=db_create_lifespan_event)
@@ -99,38 +97,39 @@ def __extract_subdirectories_path(
 async def import_local(images: list[UploadFile]):
     """Импорт нескольких изображений."""
     import_id = str(uuid.uuid4())
-    for image in images:
-        try:
-            image_content = await image.read()
-            
-            # Заводим сведения о таске импорта пикчи.
-            # job = ImportImageJob(
-            #     import_id=import_id,
-            #     image_filename=image.filename,
-            #     status='pending'
-            # )
-            # session.add(job)
-            # session.commit()
-            
-            #TODO: Я хз как это убожество сделать нормально
-            # нужно где-то временно сохранять байтовое представление
-            # пикч, потом они удаляются. Пока что они тупо в этой директории
-            # спавнятся.
-            filepath = f'{image.filename}'
-            with open(filepath, "wb") as f:
-                f.write(image_content)
-            
-            actors.import_local.send(
-                import_id=import_id,
-                filepath=filepath,
-                filename=image.filename
-            )
-        except Exception as e:
-            # Отмена сведений о таске импорта пикчи, в случае ошибки.
-            # session.rollback()
-            raise HTTPException(
-                status_code=500,
-                detail=f'Ошибка отправки на загрузку файла: {image.filename}. Код ошибки: {str(e)}')
+    with(Session(engine) as session):
+        for image in images:
+            try:
+                # Заводим сведения о таске импорта пикчи.
+                job = ImportImageJob(
+                    import_id=import_id,
+                    image_filename=image.filename,
+                    status='pending'
+                )
+                session.add(job)
+                session.commit()
+                
+                # Нам нужно сохранить изображение, так как
+                # брокер не работает со сложными типами данных.
+                # Будем использовать байты
+                image_content = await image.read()
+                #TODO: Я хз как это убожество сделать нормально
+                # нужно где-то временно сохранять байтовое представление
+                # пикч, потом они удаляются. Пока что они тупо в этой директории
+                # спавнятся.
+                filepath = f'{image.filename}'
+                with open(filepath, "wb") as f:
+                    f.write(image_content)
+                
+                actors.import_local.send(
+                    import_id=import_id,
+                    filepath=filepath,
+                    filename=image.filename
+                )
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f'Ошибка отправки на загрузку файла: {image.filename}. Код ошибки: {str(e)}')
     return {"import_id": import_id}
 
 
@@ -204,42 +203,39 @@ def import_cloud(request: S3Request, session: Session = Depends(get_session)):
 def __folder_exists(key):
     return True
 
-
+#TODO: Тут наверное нужно улучшить вывод статуса, чтобы Тане было понятно когда импорт закончился.
+# Пока что можно парсить список приходящий и если хотя бы один job.status == 'pending', тогда еще не все...
 @app.get("/api/import/status/{import_id}")
 def import_status(import_id: str):
-    #TODO: Нужно получать инфу с поля status у
-    # ImportImageJob инстанса таски импорта пикчи.
-    """Проверка статуса импорта."""
-    exists = __folder_exists(import_id)
-    return (
-        {"status": "ready"}
-        if exists
-        else Response({"status": "in process"}, 204)
-    )
+    with Session(engine) as session:
+        statement = select(ImportImageJob).where(ImportImageJob.import_id == import_id)
+        jobs = session.exec(statement).all()
+        if not jobs:
+            raise HTTPException(status_code=404, detail="import_id не найден.")        
+        return [{"filename": job.image_filename, "status": job.status} for job in jobs]
 
 
+#TODO: Внедрить async актора (сырой в actors.py) и PredictImageJob.
 @app.post("/api/predict/{import_id}")
 def predict_images(import_id: str):
     """Распознание импортированных изображений."""
     task_id = str(uuid.uuid4())
-    #TODO: Нужно завести инстанс таски распознания пикч
-    actors.predict_local.send(BUCKET_NAME, import_id, task_id)
+    predict_local(model, BUCKET_NAME, import_id, task_id)
     return {"task_id": task_id}
 
 
+#TODO: Внедрить async актора (сырой в actors.py) и PredictImageJob.
 @app.post("/api/predict_cloud/{import_id}")
 def predict_images(import_id: str):
     """Распознание изображений сохраненных на S3."""
     task_id = str(uuid.uuid4())
-    #TODO: Нужно завести инстанс таски распознания пикч
-    actors.predict_cloud.send(BUCKET_NAME, import_id, task_id)
+    predict_cloud(model, BUCKET_NAME, import_id, task_id)
     return {"task_id": task_id}
 
 
+#TODO: Внедрить PredictImageJob.
 @app.get("/api/predict/status/{task_id}")
 def predict_status(task_id: str):
-    #TODO: Нужно получать инфу с поля status у
-    # условного {ImagePredictJob} инстанса таски распознания пикч.
     """Проверка статуса распознания."""
     exists = __folder_exists(task_id)
     return (
