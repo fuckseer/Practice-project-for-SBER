@@ -163,16 +163,17 @@ const UploadSection = () => {
       });
   };
 
- // Облачная загрузка файлов
- const handleCloudUpload = async () => {
+const handleCloudUpload = async () => {
   if (!cloudLink || !accessKey || !secretKey) {
     alert("Введите все данные для подключения!");
     return;
   }
 
-    // Формируем данные для отправки
+  // Form the full S3 path
+  const s3Path = `${cloudLink}/${accessKey}/${secretKey}`;  // Or another way to form it depending on the S3 setup
+
   const payload = {
-    endpoint_url: cloudLink,
+    s3_path_to_folder: s3Path,
     access_key: accessKey,
     secret_key: secretKey,
   };
@@ -187,12 +188,13 @@ const UploadSection = () => {
 
     startCloudPrediction(import_id);
   } catch (error) {
-    console.error("Ошибка при загрузке из облака:", error);
-    setStatusMessage("Ошибка подключения к облаку.");
+    console.error("Ошибка при загрузке из облака:", error.response?.data || error.message);
+    setStatusMessage(`Ошибка подключения к облаку: ${error.response?.data?.message || error.message}`);
   } finally {
     setShowModal(false);
   }
 };
+
 
 // Запуск предсказания из облака
 const startCloudPrediction = (importId) => {
@@ -306,6 +308,7 @@ const startCloudPrediction = (importId) => {
               onChange={(e) => setSecretKey(e.target.value)}
               className="cloud-link-input"
             />      
+            
             <button className="upload-button" onClick={handleCloudUpload}>
               Отправить
             </button>

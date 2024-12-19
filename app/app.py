@@ -21,7 +21,6 @@ from botocore.exceptions import NoCredentialsError, PartialCredentialsError, Cli
 
 load_dotenv()
 
-
 APP_URL = os.getenv("APP_URL", "http://localhost:7860")
 ALLOWED_URLS = os.getenv("ALLOWED_URLS", "http://localhost:3000").split(",")
 DB_CONNECTION_STRING = os.getenv("POSTGRESQL_CONNECTION_STRING", 'sqlite:///waste.db')
@@ -49,7 +48,6 @@ async def db_create_lifespan_event(app: FastAPI):
 app = FastAPI(lifespan=db_create_lifespan_event)
 engine = create_engine(DB_CONNECTION_STRING)
 
-
 # Разрешаем CORS
 app.add_middleware(
     CORSMiddleware,
@@ -58,7 +56,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 def __create_db_and_tables():
     SQLModel.metadata.create_all(engine)
