@@ -5,21 +5,17 @@ from typing import TYPE_CHECKING
 
 import cv2
 import boto3
-import os
 import re
 import pandas as pd
 from model import MODEL_CONF
 from regex_patterns import PARSE_GPS_TAGS_PATTERN
-from sqlmodel import select, Session, create_engine
-from db_models import S3ClientData
+from sqlmodel import select, Session
+from db_models import S3ClientData, engine
 from s3 import BUCKET_OBJECTS_URL, s3_client, s3_resource
 
 if TYPE_CHECKING:
     from ultralytics import YOLO
     from ultralytics.engine.results import Results 
-
-DB_CONNECTION_STRING = os.getenv("POSTGRESQL_CONNECTION_STRING", 'sqlite:///waste.db')
-engine = create_engine(DB_CONNECTION_STRING)
 
 
 def __format_GPS(full_gps: str) -> str:
@@ -69,7 +65,7 @@ def __retrieve_metadata(s3_bucket: str, obj_key: str) -> str:
     return ""
 
 
-def __retrieve_images_urls_with_metadata(
+def retrieve_images_urls_with_metadata(
         s3_bucket: str,
         import_id: str, 
         from_cloud: bool=False, 
@@ -173,7 +169,7 @@ def __upload_images_to_s3(
         s3_resource.Object(s3_bucket, f"{task_id}/{name}").put(Body=data)
 
 
-def __wrap_prediction(
+def wrap_prediction(
         model: YOLO, 
         data: dict[str, str],
         s3_bucket: str,
@@ -206,11 +202,11 @@ def predict_local(model: YOLO, s3_bucket: str, import_id: str, task_id: str):
     Результаты загружаются в s3://{s3_bucket}/{task_id}.
     """
     # Получаем словарь {URL : Метаданные} изображений на S3.
-    images_data = __retrieve_images_urls_with_metadata(
+    images_data = retrieve_images_urls_with_metadata(
         import_id=import_id,
         s3_bucket=s3_bucket
     )
-    __wrap_prediction(
+    wrap_prediction(
         model=model,
         data=images_data,
         s3_bucket=s3_bucket,
@@ -233,13 +229,13 @@ def predict_cloud(model: YOLO, s3_our_bucket: str, import_id: str, task_id: str)
             raise Exception(f'Сведений об: {s3_credentials} не найдено в БД.')
     
     # Получаем словарь {URL : Метаданные} изображений на S3.
-    images_data = __retrieve_images_urls_with_metadata(
+    images_data = retrieve_images_urls_with_metadata(
         s3_bucket=s3_credentials.bucket,
         import_id=import_id,
         from_cloud=True,
         s3_cloud_data=s3_credentials
     )
-    __wrap_prediction(
+    wrap_prediction(
         model=model,
         data=images_data,
         s3_bucket=s3_our_bucket,

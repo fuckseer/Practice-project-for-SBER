@@ -1,22 +1,25 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 import re
 import uuid
-
 import boto3
-from dotenv import load_dotenv
-from fastapi import FastAPI, Response, UploadFile, HTTPException, Depends
-from PIL import Image, ExifTags
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+import actors
+import dramatiq
+
 from model import model
-from predict import predict_local, predict_cloud
+from dotenv import load_dotenv
 from contextlib import asynccontextmanager
+from fastapi.responses import HTMLResponse
+from sqlmodel import SQLModel, Session, select
+from predict import predict_cloud, predict_local
+from fastapi.middleware.cors import CORSMiddleware
+from dramatiq.brokers.rabbitmq import RabbitmqBroker
 from regex_patterns import PARSE_S3_COMPONENTS_PATTERN
 from s3 import BUCKET_NAME, BUCKET_OBJECTS_URL, bucket
-from db_models import S3Request, S3ClientData
-from sqlmodel import SQLModel, Session, create_engine, select
+from fastapi import FastAPI, Response, UploadFile, HTTPException, Depends
+from db_models import S3Request, S3ClientData, get_session, engine, ImportImageJob
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
 
 load_dotenv()
@@ -24,7 +27,8 @@ load_dotenv()
 
 APP_URL = os.getenv("APP_URL", "http://localhost:7860")
 ALLOWED_URLS = os.getenv("ALLOWED_URLS", "http://localhost:3000").split(",")
-DB_CONNECTION_STRING = os.getenv("POSTGRESQL_CONNECTION_STRING", 'sqlite:///waste.db')
+BROKER_URL = os.getenv("MESSAGE_BROKER_URL", "amqp://guest:guest@localhost:5672//")
+
 
 root_page = f"""
 <html>
@@ -46,8 +50,11 @@ async def db_create_lifespan_event(app: FastAPI):
     yield
 
 
+#TODO: Брокер нужно настроить, чтобы он не пытался одну и ту же задачу постоянно повторять
+# меня на локалке это запарило, но я конечно тот еще смешарик, не шарю.
+broker = RabbitmqBroker(url=BROKER_URL)
+dramatiq.set_broker(broker)
 app = FastAPI(lifespan=db_create_lifespan_event)
-engine = create_engine(DB_CONNECTION_STRING)
 
 
 # Разрешаем CORS
@@ -70,18 +77,6 @@ def root():
     return HTMLResponse(content=root_page, status_code=200)
 
 
-def __extract_gps_metadata(image_content) -> str:
-    try:
-        exif_data = image_content.getexif()
-        gps_ifd = exif_data.get_ifd(ExifTags.IFD.GPSInfo)
-        if not gps_ifd:
-            return ''
-        return str(gps_ifd)
-    except Exception as e:
-        print(f'Error occured: {e}')
-        return ''
-
-
 def __extract_subdirectories_path(
         full_path: str,
         endpoint: str,
@@ -99,21 +94,42 @@ def __extract_subdirectories_path(
 
 
 @app.post("/api/import/local")
-def import_local(images: list[UploadFile]):
+async def import_local(images: list[UploadFile]):
     """Импорт нескольких изображений."""
     import_id = str(uuid.uuid4())
-    for image in images:
-        try:
-            image_content = Image.open(image.file)
-            gps_metadata = __extract_gps_metadata(image_content)
-            image.file.seek(0)
-            bucket.upload_fileobj(
-                image.file, 
-                f"{import_id}/{image.filename}",
-                ExtraArgs={'Metadata': {'Gps': gps_metadata}}
-            )
-        except Exception as e:
-            return {'Failed to upload: ': f'{image.filename} with error {str(e)}'}
+    with(Session(engine) as session):
+        for image in images:
+            try:
+                # Заводим сведения о таске импорта пикчи.
+                job = ImportImageJob(
+                    import_id=import_id,
+                    image_filename=image.filename,
+                    status='pending'
+                )
+                session.add(job)
+                session.commit()
+                
+                # Нам нужно сохранить изображение, так как
+                # брокер не работает со сложными типами данных.
+                # Будем использовать байты
+                image_content = await image.read()
+                #TODO: Я хз как это убожество сделать нормально
+                # нужно где-то временно сохранять байтовое представление
+                # пикч, потом они удаляются. Пока что они тупо в этой директории
+                # спавнятся.
+                filepath = f'{image.filename}'
+                with open(filepath, "wb") as f:
+                    f.write(image_content)
+                
+                actors.import_local.send(
+                    import_id=import_id,
+                    filepath=filepath,
+                    filename=image.filename
+                )
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f'Ошибка отправки на загрузку файла: {image.filename}. Код ошибки: {str(e)}')
     return {"import_id": import_id}
 
 
@@ -146,6 +162,7 @@ def import_cloud(request: S3Request):
     except ClientError as e:
         raise HTTPException(status_code=400, detail=f'Ошибка соединения с S3: {e.response}')
     
+    
     with Session(engine) as session:
         existing_entry = session.exec(
             select(S3ClientData)
@@ -156,7 +173,7 @@ def import_cloud(request: S3Request):
             # Если данные уже обработаны, то лучше возвращаться ссылку на готовый эксперимент
             # (Ссылка с query params значениями, пока не реализована).
             raise HTTPException(status_code=400, detail='Запись об этих данных уже сохранялась.')
-        
+            
         import_id = str(uuid.uuid4())
         full_path=request.s3_path_to_folder
         access_key=request.access_key
@@ -187,18 +204,19 @@ def import_cloud(request: S3Request):
 def __folder_exists(key):
     return True
 
-
+#TODO: Тут наверное нужно улучшить вывод статуса, чтобы Тане было понятно когда импорт закончился.
+# Пока что можно парсить список приходящий и если хотя бы один job.status == 'pending', тогда еще не все...
 @app.get("/api/import/status/{import_id}")
 def import_status(import_id: str):
-    """Проверка статуса импорта."""
-    exists = __folder_exists(import_id)
-    return (
-        {"status": "ready"}
-        if exists
-        else Response({"status": "in process"}, 204)
-    )
+    with Session(engine) as session:
+        statement = select(ImportImageJob).where(ImportImageJob.import_id == import_id)
+        jobs = session.exec(statement).all()
+        if not jobs:
+            raise HTTPException(status_code=404, detail="import_id не найден.")        
+        return [{"filename": job.image_filename, "status": job.status} for job in jobs]
 
 
+#TODO: Внедрить async актора (сырой в actors.py) и PredictImageJob.
 @app.post("/api/predict/{import_id}")
 def predict_images(import_id: str):
     """Распознание импортированных изображений."""
@@ -207,6 +225,7 @@ def predict_images(import_id: str):
     return {"task_id": task_id}
 
 
+#TODO: Внедрить async актора (сырой в actors.py) и PredictImageJob.
 @app.post("/api/predict_cloud/{import_id}")
 def predict_images(import_id: str):
     """Распознание изображений сохраненных на S3."""
@@ -215,6 +234,7 @@ def predict_images(import_id: str):
     return {"task_id": task_id}
 
 
+#TODO: Внедрить PredictImageJob.
 @app.get("/api/predict/status/{task_id}")
 def predict_status(task_id: str):
     """Проверка статуса распознания."""
@@ -222,7 +242,7 @@ def predict_status(task_id: str):
     return (
         {"status": "ready"}
         if exists
-        else Response({"status": "in process"}, 204)
+        else Response({"status": "in progress"}, 204)
     )
 
 
