@@ -134,7 +134,7 @@ async def import_local(images: list[UploadFile]):
 
 
 @app.post("/api/import/cloud")
-def import_cloud(request: S3Request, session: Session = Depends(get_session)):
+def import_cloud(request: S3Request):
     try:
         match = re.match(PARSE_S3_COMPONENTS_PATTERN, request.s3_path_to_folder)
         if match:
@@ -163,40 +163,41 @@ def import_cloud(request: S3Request, session: Session = Depends(get_session)):
         raise HTTPException(status_code=400, detail=f'Ошибка соединения с S3: {e.response}')
     
     
-    existing_entry = session.exec(
-        select(S3ClientData)
-        .where(S3ClientData.full_path == request.s3_path_to_folder)
-    ).first()
-    if existing_entry:
-        #TODO: Обработать поведение, когда одна и та же ссылка передается снова.
-        # Если данные уже обработаны, то лучше возвращаться ссылку на готовый эксперимент
-        # (Ссылка с query params значениями, пока не реализована).
-        raise HTTPException(status_code=400, detail='Запись об этих данных уже сохранялась.')
-        
-    import_id = str(uuid.uuid4())
-    full_path=request.s3_path_to_folder
-    access_key=request.access_key
-    secret_key=request.secret_key
-    # Извлекаем путь между бакетом и до конечной папки.
-    subdirectories_path = __extract_subdirectories_path(
-        full_path=full_path,
-        endpoint=endpoint_url,
-        bucket=bucket_name,
-        final_folder=folder_to_predict_from
-    )
-    # Создаем запись в БД.
-    credentials_entry = S3ClientData(
-        id=import_id,
-        full_path=full_path,
-        subdirectories_path=subdirectories_path,
-        folder=folder_to_predict_from,
-        bucket=bucket_name,
-        endpoint_url=endpoint_url,
-        access_key=access_key,
-        secret_key=secret_key
-    )
-    session.add(credentials_entry)
-    session.commit()
+    with Session(engine) as session:
+        existing_entry = session.exec(
+            select(S3ClientData)
+            .where(S3ClientData.full_path == request.s3_path_to_folder)
+        ).first()
+        if existing_entry:
+            #TODO: Обработать поведение, когда одна и та же ссылка передается снова.
+            # Если данные уже обработаны, то лучше возвращаться ссылку на готовый эксперимент
+            # (Ссылка с query params значениями, пока не реализована).
+            raise HTTPException(status_code=400, detail='Запись об этих данных уже сохранялась.')
+            
+        import_id = str(uuid.uuid4())
+        full_path=request.s3_path_to_folder
+        access_key=request.access_key
+        secret_key=request.secret_key
+        # Извлекаем путь между бакетом и до конечной папки.
+        subdirectories_path = __extract_subdirectories_path(
+            full_path=full_path,
+            endpoint=endpoint_url,
+            bucket=bucket_name,
+            final_folder=folder_to_predict_from
+        )
+        # Создаем запись в БД.
+        credentials_entry = S3ClientData(
+            id=import_id,
+            full_path=full_path,
+            subdirectories_path=subdirectories_path,
+            folder=folder_to_predict_from,
+            bucket=bucket_name,
+            endpoint_url=endpoint_url,
+            access_key=access_key,
+            secret_key=secret_key
+        )
+        session.add(credentials_entry)
+        session.commit()
     return {"import_id": import_id}
 
 
