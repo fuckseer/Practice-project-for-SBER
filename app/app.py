@@ -212,7 +212,12 @@ def import_status(import_id: str):
         statement = select(ImportImageJob).where(ImportImageJob.import_id == import_id)
         jobs = session.exec(statement).all()
         if not jobs:
-            raise HTTPException(status_code=404, detail="import_id не найден.")        
+            cloud_statement = select(S3ClientData).where(S3ClientData.id == import_id)
+            cloud_data = session.exec(cloud_statement).first()
+            if not cloud_data:
+                raise HTTPException(status_code=404, detail="import_id не найден.") 
+            else:
+                return Response(f"{import_id}. Запись о S3 данных сохранена в БД. Можно приступать к обработке", status_code=200)       
         return [{"filename": job.image_filename, "status": job.status} for job in jobs]
 
 
