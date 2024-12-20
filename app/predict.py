@@ -5,20 +5,17 @@ from typing import TYPE_CHECKING
 
 import cv2
 import boto3
-import os
 import re
 import pandas as pd
 from model import MODEL_CONF
-from sqlmodel import select, Session, create_engine
-from db_models import S3Credentials
+from regex_patterns import PARSE_GPS_TAGS_PATTERN
+from sqlmodel import select, Session
+from db_models import S3ClientData, engine
 from s3 import BUCKET_OBJECTS_URL, s3_client, s3_resource
 
 if TYPE_CHECKING:
     from ultralytics import YOLO
     from ultralytics.engine.results import Results 
-
-DB_CONNECTION_STRING = os.getenv("POSTGRESQL_CONNECTION_STRING", "")
-engine = create_engine(DB_CONNECTION_STRING)
 
 
 def __format_GPS(full_gps: str) -> str:
@@ -36,8 +33,7 @@ def __format_GPS(full_gps: str) -> str:
     full_gps = {1: 'N', 2: (4.0, 0.0, 36.6771599), 3: 'W', 4: (25.0, 58.0, 54.73848), 5: b'\x00', 6: 19.153, 7: (13.0, 50.0, 13.0), 29: '2022:03:15'};\n
     output = 4°00'36.7"N 25°58'54.7"W
     """
-    pattern = r"\{1: '([NS])', 2: \((\d+)\.\d+, (\d+)\.\d+, (\d+\.\d+)\), 3: '([EW])', 4: \((\d+)\.\d+, (\d+)\.\d+, (\d+\.\d+)\)"
-    match = re.search(pattern, full_gps)
+    match = re.search(PARSE_GPS_TAGS_PATTERN, full_gps)
     if not match:
         # Если совпадений по регулярке нет - значит исходные данные о GPS
         # отсутствовали, либо были неполные (отсутствовали ширина и долгота).
@@ -69,21 +65,26 @@ def __retrieve_metadata(s3_bucket: str, obj_key: str) -> str:
     return ""
 
 
-def __retrieve_images_urls_with_metadata(
-        s3_bucket: str, import_id: str, from_cloud: bool=False, s3_cloud_credentials=None
+def retrieve_images_urls_with_metadata(
+        s3_bucket: str,
+        import_id: str, 
+        from_cloud: bool=False, 
+        s3_cloud_data=None,
 ) -> dict[str, str]:
     if not from_cloud:
         # Получаем список всех объектов в бакете внутри директории import_id
         response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=import_id)
     else:
-        # Получаем папку из пути {bucket}/{folder}
-        folder = s3_cloud_credentials.s3_path_to_folder.split("/")[1]
-        response = boto3.client(
+        client = boto3.client(
             's3',
-            endpoint_url=s3_cloud_credentials.endpoint_url,
-            aws_access_key_id=s3_cloud_credentials.access_key,
-            aws_secret_access_key=s3_cloud_credentials.secret_key
-        ).list_objects_v2(Bucket=s3_bucket, Prefix=folder)
+            endpoint_url=s3_cloud_data.endpoint_url,
+            aws_access_key_id=s3_cloud_data.access_key,
+            aws_secret_access_key=s3_cloud_data.secret_key
+        )
+        if s3_cloud_data.subdirectories_path == "":
+            response = client.list_objects_v2(Bucket=s3_bucket, Prefix=s3_cloud_data.folder)
+        else:
+            response = client.list_objects_v2(Bucket=s3_bucket, Prefix=s3_cloud_data.subdirectories_path)
 
 
     if "Contents" not in response:
@@ -95,12 +96,18 @@ def __retrieve_images_urls_with_metadata(
     # исключаем её из результирующего списка.
     data = {}
     for item in response['Contents']:
+        #TODO: В случае, если загрузка шла из облака, import_id не обязан быть равен
+        # папке, в которой находятся изображения для обработки, соответственно проверка
+        # item['Key'] != import_id должна быть обработана иначе.
         if item['Key'] != import_id and item.get("Size", 1) > 0:
-            metadata = __retrieve_metadata(s3_bucket, item['Key'])
+            metadata = ''
             if not from_cloud:
+                #TODO: Допилить __retrieve_metadata() для работы с файлами, полученными
+                # по ссылке на S3. Пока с S3 вообще не трогаем метаданные (лень...)
+                metadata = __retrieve_metadata(s3_bucket, item['Key'])
                 url = f"{BUCKET_OBJECTS_URL}/{item['Key']}"
             else:
-                url = f"{s3_cloud_credentials.endpoint_url}/{s3_bucket}/{item['Key']}"
+                url = f"{s3_cloud_data.endpoint_url}/{s3_bucket}/{item['Key']}"
             data[url] = metadata
     return data
 
@@ -162,25 +169,23 @@ def __upload_images_to_s3(
         s3_resource.Object(s3_bucket, f"{task_id}/{name}").put(Body=data)
 
 
-def predict_local(model: YOLO, s3_bucket: str, import_id: str, task_id: str):
-    """Функция распознания мусора на изображениях.
-
-    Получает изображения из s3://{s3_bucket}/{import_id}.
-    Результаты загружаются в s3://{s3_bucket}/{task_id}.
+def wrap_prediction(
+        model: YOLO, 
+        data: dict[str, str],
+        s3_bucket: str,
+        task_id: str
+    ):
     """
-    # Получаем словарь {URL : Метаданные} изображений на S3.
-    images_data = __retrieve_images_urls_with_metadata(
-        s3_bucket,
-        import_id
-    )
+    Функция обрабатывает в YOLO модели данные с изображениями по их URL.
+    """
     # Извлекаем URLs.
-    images_urls = list(images_data.keys())
+    images_urls = list(data.keys())
     # Отправляем изображения на обработку модели.
     results = model.predict(images_urls, conf=MODEL_CONF)
     # Отправляем на генерацию итогового DataFrame для отчёта.
     results_data_frame = __generate_dataframe(
         images_urls,
-        images_data, 
+        data, 
         results
     )
     # Начинаем загрузку DataFrame на S3, в формате CSV.
@@ -190,6 +195,25 @@ def predict_local(model: YOLO, s3_bucket: str, import_id: str, task_id: str):
     __upload_images_to_s3(s3_bucket, task_id, example_images)
 
 
+def predict_local(model: YOLO, s3_bucket: str, import_id: str, task_id: str):
+    """Функция распознания мусора на изображениях.
+
+    Получает изображения из s3://{s3_bucket}/{import_id}.
+    Результаты загружаются в s3://{s3_bucket}/{task_id}.
+    """
+    # Получаем словарь {URL : Метаданные} изображений на S3.
+    images_data = retrieve_images_urls_with_metadata(
+        import_id=import_id,
+        s3_bucket=s3_bucket
+    )
+    wrap_prediction(
+        model=model,
+        data=images_data,
+        s3_bucket=s3_bucket,
+        task_id=task_id
+    )
+
+
 def predict_cloud(model: YOLO, s3_our_bucket: str, import_id: str, task_id: str):
     """Функция распознания мусора на изображениях.
 
@@ -197,31 +221,23 @@ def predict_cloud(model: YOLO, s3_our_bucket: str, import_id: str, task_id: str)
     Результаты загружаются в s3://{s3_our_bucket}/{task_id}.
     """
     with Session(engine) as session:
-        query = select(S3Credentials).where(S3Credentials.id == import_id)
-        s3_credentials = session.exec(query).first()
+        s3_credentials = session.exec(
+            select(S3ClientData)
+            .where(S3ClientData.id == import_id)
+        ).first()
         if not s3_credentials:
-            raise Exception(f'{s3_credentials} instance not found in DB.')
+            raise Exception(f'Сведений об: {s3_credentials} не найдено в БД.')
     
-    cloud_bucket = s3_credentials.s3_path_to_folder.split("/")[0]
     # Получаем словарь {URL : Метаданные} изображений на S3.
-    images_data = __retrieve_images_urls_with_metadata(
-        cloud_bucket, 
-        import_id,
+    images_data = retrieve_images_urls_with_metadata(
+        s3_bucket=s3_credentials.bucket,
+        import_id=import_id,
         from_cloud=True,
-        s3_cloud_credentials=s3_credentials
+        s3_cloud_data=s3_credentials
     )
-    # Извлекаем URLs.
-    images_urls = list(images_data.keys())
-    # Отправляем изображения на обработку модели.
-    results = model.predict(images_urls, conf=MODEL_CONF)
-    # Отправляем на генерацию итогового DataFrame для отчёта.
-    results_data_frame = __generate_dataframe(
-        images_urls,
-        images_data, 
-        results
+    wrap_prediction(
+        model=model,
+        data=images_data,
+        s3_bucket=s3_our_bucket,
+        task_id=task_id
     )
-    # Начинаем загрузку DataFrame на S3, в формате CSV.
-    __upload_processed_dataframe(results_data_frame, s3_our_bucket, task_id)
-
-    example_images = __choose_images(results)
-    __upload_images_to_s3(s3_our_bucket, task_id, example_images)
