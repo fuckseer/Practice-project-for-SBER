@@ -22,3 +22,7 @@ variable "folder_id" {
 variable "ssh_pub" {
   type = string
 }
+
+variable "model_image_tag" {
+  type = string
+}

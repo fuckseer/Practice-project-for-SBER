@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 RUN pip install --no-cache-dir --upgrade sqlmodel psycopg2-binary 'dramatiq[rabbitmq, watch]'
 
 COPY --chown=user app/ /app
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "80"]

@@ -35,3 +35,15 @@ output "access-keys" {
 output "registry_id" {
   value = yandex_container_registry.default.id
 }
+
+output "infrastructure_ip" {
+  value = yandex_vpc_address.label-studio.external_ipv4_address[0].address
+}
+
+output "app_ip" {
+  value = yandex_vpc_address.model.external_ipv4_address[0].address
+}
+
+output "frontend_domain" {
+  value = yandex_storage_bucket.app.website_endpoint
+}

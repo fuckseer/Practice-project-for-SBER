@@ -1,0 +1,32 @@
+spec:
+  containers:
+    - image: cr.yandex/${registry_id}/${registry_name}:${image_tag}
+      env:
+        - name: DOWNLOAD_MODEL
+          value: true
+        - name: MLFLOW_URL
+          value: http://waste.sergei-kiprin.ru:5000
+        - name: MODEL_NAME
+          value: waste-detection
+        - name: MODEL_TAG
+          value: best
+        - name: MLFLOW_S3_ENDPOINT_URL
+          value: https://storage.yandexcloud.net
+        - name: AWS_ACCESS_KEY_ID
+          value: ${app_s3_key_id}
+        - name: AWS_SECRET_ACCESS_KEY
+          value: ${app_s3_key_secret}
+        - name: BUCKET_NAME
+          value: ${app_s3_bucket}
+        - name: APP_URL
+          value: http://waste-detection.sergei-kiprin.ru
+        - name: ALLOWED_URLS
+          value: http://localhost:3000,http://waste.sergei-kiprin.ru,http://waste-detection.sergei-kiprin.ru,https://${frontend_url}
+        - name: POSTGRESQL_CONNECTION_STRING
+          value: postgresql://postgres@waste.sergei-kiprin.ru:5432/model
+        - name: BROKER_URL
+          value: amqp://admin:admin@waste.sergei-kiprin.ru:5672//
+      securityContext:
+        privileged: false
+      stdin: false
+      tty: false
