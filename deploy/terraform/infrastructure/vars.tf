@@ -2,6 +2,10 @@ locals {
   main_zone = "ru-central1-b"
 }
 
+variable "user_id" {
+  type = string
+}
+
 variable "iam_token" {
   type = string
   sensitive = true
@@ -16,5 +20,9 @@ variable "folder_id" {
 }
 
 variable "ssh_pub" {
+  type = string
+}
+
+variable "model_image_tag" {
   type = string
 }

@@ -60,6 +60,20 @@ services:
     volumes:
       - postgresql:/var/lib/postgresql/data
 
+  rabbitmq:
+    image: rabbitmq:4-management
+    hostname: rabbitmq
+    ports:
+      - 15672:15672
+      - 5672:5672
+    restart: always
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+    volumes:
+      - rabbitmq:/var/lib/rabbitmq
+
 volumes:
   label-studio:
   postgresql:
+  rabbitmq:
