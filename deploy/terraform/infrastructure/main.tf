@@ -61,41 +61,42 @@ resource "yandex_iam_service_account_static_access_key" "team3" {
 
 # mlflow
 
-resource "yandex_iam_service_account" "mlflow" {
-  folder_id = var.folder_id
-  name      = "mlflow"
-}
+# resource "yandex_iam_service_account" "mlflow" {
+#   folder_id = var.folder_id
+#   name      = "mlflow"
+# }
 
-resource "yandex_iam_service_account_static_access_key" "mlflow" {
-  service_account_id = yandex_iam_service_account.mlflow.id
-}
+# resource "yandex_iam_service_account_static_access_key" "mlflow" {
+#   service_account_id = yandex_iam_service_account.mlflow.id
+# }
 
 # app
 
-resource "yandex_iam_service_account" "app" {
-  folder_id = var.folder_id
-  name      = "app"
-}
+# resource "yandex_iam_service_account" "app" {
+#   folder_id = var.folder_id
+#   name      = "app"
+# }
 
-resource "yandex_iam_service_account_static_access_key" "app" {
-  service_account_id = yandex_iam_service_account.app.id
-}
+# resource "yandex_iam_service_account_static_access_key" "app" {
+#   service_account_id = yandex_iam_service_account.app.id
+# }
 
 # label-studio
 
-resource "yandex_iam_service_account" "label-studio" {
-  folder_id = var.folder_id
-  name      = "label-studio"
-}
+# resource "yandex_iam_service_account" "label-studio" {
+#   folder_id = var.folder_id
+#   name      = "label-studio"
+# }
 
-resource "yandex_iam_service_account_static_access_key" "label-studio" {
-  service_account_id = yandex_iam_service_account.label-studio.id
-}
+# resource "yandex_iam_service_account_static_access_key" "label-studio" {
+#   service_account_id = yandex_iam_service_account.label-studio.id
+# }
 
 ### Object Storage ###
 
 resource "yandex_storage_bucket" "waste-detection" {
   bucket     = "waste"
+
   access_key = yandex_iam_service_account_static_access_key.cloud-editor.access_key
   secret_key = yandex_iam_service_account_static_access_key.cloud-editor.secret_key
 
@@ -123,11 +124,11 @@ resource "yandex_storage_bucket" "waste-detection" {
     permissions = ["READ"]
   }
 
-  grant {
-    id          = yandex_iam_service_account.label-studio.id
-    type        = "CanonicalUser"
-    permissions = ["READ"]
-  }
+  # grant {
+  #   id          = yandex_iam_service_account.label-studio.id
+  #   type        = "CanonicalUser"
+  #   permissions = ["READ"]
+  # }
 
   anonymous_access_flags {
     read = true
@@ -139,181 +140,181 @@ resource "yandex_storage_bucket" "waste-detection" {
   }
 }
 
-resource "yandex_storage_bucket" "mlflow" {
-  bucket_prefix = "mlflow-storage"
-  access_key    = yandex_iam_service_account_static_access_key.cloud-editor.access_key
-  secret_key    = yandex_iam_service_account_static_access_key.cloud-editor.secret_key
+# resource "yandex_storage_bucket" "mlflow" {
+#   bucket_prefix = "mlflow-storage"
+#   access_key    = yandex_iam_service_account_static_access_key.cloud-editor.access_key
+#   secret_key    = yandex_iam_service_account_static_access_key.cloud-editor.secret_key
 
-  grant {
-    id          = yandex_iam_service_account.mlflow.id
-    type        = "CanonicalUser"
-    permissions = ["READ", "WRITE"]
-  }
+#   grant {
+#     id          = yandex_iam_service_account.mlflow.id
+#     type        = "CanonicalUser"
+#     permissions = ["READ", "WRITE"]
+#   }
 
-  grant {
-    id          = yandex_iam_service_account.storage-editor.id
-    type        = "CanonicalUser"
-    permissions = ["READ", "WRITE"]
-  }
+#   grant {
+#     id          = yandex_iam_service_account.storage-editor.id
+#     type        = "CanonicalUser"
+#     permissions = ["READ", "WRITE"]
+#   }
 
-  grant {
-    id          = yandex_iam_service_account.app.id
-    type        = "CanonicalUser"
-    permissions = ["READ"]
-  }
-}
+#   grant {
+#     id          = yandex_iam_service_account.app.id
+#     type        = "CanonicalUser"
+#     permissions = ["READ"]
+#   }
+# }
 
-resource "yandex_storage_bucket" "app-storage" {
-  bucket_prefix = "app-storage"
-  access_key    = yandex_iam_service_account_static_access_key.cloud-editor.access_key
-  secret_key    = yandex_iam_service_account_static_access_key.cloud-editor.secret_key
+# resource "yandex_storage_bucket" "app-storage" {
+#   bucket_prefix = "app-storage"
+#   access_key    = yandex_iam_service_account_static_access_key.cloud-editor.access_key
+#   secret_key    = yandex_iam_service_account_static_access_key.cloud-editor.secret_key
 
-  grant {
-    id          = yandex_iam_service_account.app.id
-    type        = "CanonicalUser"
-    permissions = ["READ", "WRITE"]
-  }
+#   grant {
+#     id          = yandex_iam_service_account.app.id
+#     type        = "CanonicalUser"
+#     permissions = ["READ", "WRITE"]
+#   }
 
-  anonymous_access_flags {
-    read = true
-  }
-}
+#   anonymous_access_flags {
+#     read = true
+#   }
+# }
 
-resource "yandex_storage_bucket" "app" {
-  bucket     = "waste-detection"
-  access_key = yandex_iam_service_account_static_access_key.cloud-editor.access_key
-  secret_key = yandex_iam_service_account_static_access_key.cloud-editor.secret_key
+# resource "yandex_storage_bucket" "app" {
+#   bucket     = "waste-detection"
+#   access_key = yandex_iam_service_account_static_access_key.cloud-editor.access_key
+#   secret_key = yandex_iam_service_account_static_access_key.cloud-editor.secret_key
 
-  grant {
-    id          = yandex_iam_service_account.storage-editor.id
-    type        = "CanonicalUser"
-    permissions = ["READ", "WRITE"]
-  }
+#   grant {
+#     id          = yandex_iam_service_account.storage-editor.id
+#     type        = "CanonicalUser"
+#     permissions = ["READ", "WRITE"]
+#   }
 
-  website {
-    index_document = "index.html"
-  }
-}
+#   website {
+#     index_document = "index.html"
+#   }
+# }
 
 ### Virtual Private Cloud ###
 
-data "yandex_vpc_network" "default" {
-  name = "default"
-}
+# data "yandex_vpc_network" "default" {
+#   name = "default"
+# }
 
-data "yandex_vpc_subnet" "default" {
-  subnet_id = data.yandex_vpc_network.default.subnet_ids[0]
-}
+# data "yandex_vpc_subnet" "default" {
+#   subnet_id = data.yandex_vpc_network.default.subnet_ids[0]
+# }
 
-resource "yandex_vpc_address" "label-studio" {
-  name = "label-studio"
+# resource "yandex_vpc_address" "label-studio" {
+#   name = "label-studio"
 
-  external_ipv4_address {
-    zone_id = data.yandex_vpc_subnet.default.zone
-  }
-}
+#   external_ipv4_address {
+#     zone_id = data.yandex_vpc_subnet.default.zone
+#   }
+# }
 
-resource "yandex_vpc_address" "model" {
-  name = "model"
+# resource "yandex_vpc_address" "model" {
+#   name = "model"
 
-  external_ipv4_address {
-    zone_id = data.yandex_vpc_subnet.default.zone
-  }
-}
+#   external_ipv4_address {
+#     zone_id = data.yandex_vpc_subnet.default.zone
+#   }
+# }
 
 ### Container Registry ###
 
-resource "yandex_container_registry" "default" {
-  name = "waste-detection"
-}
+# resource "yandex_container_registry" "default" {
+#   name = "waste-detection"
+# }
 
-resource "yandex_container_registry_iam_binding" "pull-all" {
-  registry_id = yandex_container_registry.default.id
-  role        = "container-registry.images.puller"
+# resource "yandex_container_registry_iam_binding" "pull-all" {
+#   registry_id = yandex_container_registry.default.id
+#   role        = "container-registry.images.puller"
 
-  members = [
-    "userAccount:${var.user_id}",
-    "serviceAccount:${yandex_iam_service_account.app.id}"
-  ]
-}
+#   members = [
+#     "userAccount:${var.user_id}",
+#     "serviceAccount:${yandex_iam_service_account.app.id}"
+#   ]
+# }
 
 ### Compute Cloud ###
 
-data "yandex_compute_image" "container-optimized-image" {
-  image_id = "fd8d61mhumda10cb33vm"
-}
+# data "yandex_compute_image" "container-optimized-image" {
+#   image_id = "fd8d61mhumda10cb33vm"
+# }
 
-resource "yandex_compute_instance" "label-studio" {
-  name               = "label-studio"
-  service_account_id = yandex_iam_service_account.label-studio.id
-  platform_id        = "standard-v3"
-  boot_disk {
-    initialize_params {
-      image_id = data.yandex_compute_image.container-optimized-image.id
-      size     = 50
-    }
-  }
-  network_interface {
-    subnet_id      = data.yandex_vpc_subnet.default.id
-    nat            = true
-    nat_ip_address = yandex_vpc_address.label-studio.external_ipv4_address[0].address
-  }
-  resources {
-    cores         = 2
-    memory        = 2
-    core_fraction = 50
-  }
-  scheduling_policy {
-    preemptible = true
-  }
-  metadata = {
-    docker-compose = templatefile("docker-compose.yaml", {
-      mlflow_s3_bucket     = yandex_storage_bucket.mlflow.id
-      mlflow_s3_key_id     = yandex_iam_service_account_static_access_key.mlflow.access_key
-      mlflow_s3_key_secret = yandex_iam_service_account_static_access_key.mlflow.secret_key
-      app_s3_bucket        = yandex_storage_bucket.app-storage.id
-      app_s3_key_id        = yandex_iam_service_account_static_access_key.app.access_key
-      app_s3_key_secret    = yandex_iam_service_account_static_access_key.app.secret_key
-    })
-    ssh-keys = "angstorm:${var.ssh_pub}"
-  }
-  allow_stopping_for_update = true
-}
+# resource "yandex_compute_instance" "label-studio" {
+#   name               = "label-studio"
+#   service_account_id = yandex_iam_service_account.label-studio.id
+#   platform_id        = "standard-v3"
+#   boot_disk {
+#     initialize_params {
+#       image_id = data.yandex_compute_image.container-optimized-image.id
+#       size     = 50
+#     }
+#   }
+#   network_interface {
+#     subnet_id      = data.yandex_vpc_subnet.default.id
+#     nat            = true
+#     nat_ip_address = yandex_vpc_address.label-studio.external_ipv4_address[0].address
+#   }
+#   resources {
+#     cores         = 2
+#     memory        = 2
+#     core_fraction = 50
+#   }
+#   scheduling_policy {
+#     preemptible = true
+#   }
+#   metadata = {
+#     docker-compose = templatefile("docker-compose.yaml", {
+#       mlflow_s3_bucket     = yandex_storage_bucket.mlflow.id
+#       mlflow_s3_key_id     = yandex_iam_service_account_static_access_key.mlflow.access_key
+#       mlflow_s3_key_secret = yandex_iam_service_account_static_access_key.mlflow.secret_key
+#       app_s3_bucket        = yandex_storage_bucket.app-storage.id
+#       app_s3_key_id        = yandex_iam_service_account_static_access_key.app.access_key
+#       app_s3_key_secret    = yandex_iam_service_account_static_access_key.app.secret_key
+#     })
+#     ssh-keys = "angstorm:${var.ssh_pub}"
+#   }
+#   allow_stopping_for_update = true
+# }
 
-resource "yandex_compute_instance" "model" {
-  name               = "model"
-  service_account_id = yandex_iam_service_account.app.id
-  platform_id        = "standard-v3"
-  boot_disk {
-    initialize_params {
-      image_id = data.yandex_compute_image.container-optimized-image.id
-      size     = 50
-    }
-  }
-  network_interface {
-    subnet_id      = data.yandex_vpc_subnet.default.id
-    nat            = true
-    nat_ip_address = yandex_vpc_address.model.external_ipv4_address[0].address
-  }
-  resources {
-    cores         = 4
-    memory        = 4
-    core_fraction = 100
-  }
-  scheduling_policy {
-    preemptible = false
-  }
-  metadata = {
-    docker-container-declaration = templatefile("declaration.yaml", {
-      registry_id       = yandex_container_registry.default.id
-      registry_name     = yandex_container_registry.default.name
-      image_tag         = var.model_image_tag
-      app_s3_bucket     = yandex_storage_bucket.app-storage.id
-      app_s3_key_id     = yandex_iam_service_account_static_access_key.app.access_key
-      app_s3_key_secret = yandex_iam_service_account_static_access_key.app.secret_key
-      frontend_url      = yandex_storage_bucket.app.website_endpoint
-    })
-    ssh-keys = "angstorm:${var.ssh_pub}"
-  }
-  allow_stopping_for_update = true
-}
+# resource "yandex_compute_instance" "model" {
+#   name               = "model"
+#   service_account_id = yandex_iam_service_account.app.id
+#   platform_id        = "standard-v3"
+#   boot_disk {
+#     initialize_params {
+#       image_id = data.yandex_compute_image.container-optimized-image.id
+#       size     = 50
+#     }
+#   }
+#   network_interface {
+#     subnet_id      = data.yandex_vpc_subnet.default.id
+#     nat            = true
+#     nat_ip_address = yandex_vpc_address.model.external_ipv4_address[0].address
+#   }
+#   resources {
+#     cores         = 4
+#     memory        = 4
+#     core_fraction = 100
+#   }
+#   scheduling_policy {
+#     preemptible = false
+#   }
+#   metadata = {
+#     docker-container-declaration = templatefile("declaration.yaml", {
+#       registry_id       = yandex_container_registry.default.id
+#       registry_name     = yandex_container_registry.default.name
+#       image_tag         = var.model_image_tag
+#       app_s3_bucket     = yandex_storage_bucket.app-storage.id
+#       app_s3_key_id     = yandex_iam_service_account_static_access_key.app.access_key
+#       app_s3_key_secret = yandex_iam_service_account_static_access_key.app.secret_key
+#       frontend_url      = yandex_storage_bucket.app.website_endpoint
+#     })
+#     ssh-keys = "angstorm:${var.ssh_pub}"
+#   }
+#   allow_stopping_for_update = true
+# }

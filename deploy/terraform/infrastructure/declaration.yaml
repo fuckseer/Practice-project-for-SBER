@@ -3,7 +3,7 @@ spec:
     - image: cr.yandex/${registry_id}/${registry_name}:${image_tag}
       env:
         - name: DOWNLOAD_MODEL
-          value: true
+          value: "true"
         - name: MLFLOW_URL
           value: http://waste.sergei-kiprin.ru:5000
         - name: MODEL_NAME
@@ -21,7 +21,7 @@ spec:
         - name: APP_URL
           value: http://waste-detection.sergei-kiprin.ru:7860
         - name: ALLOWED_URLS
-          value: http://localhost:3000,http://waste.sergei-kiprin.ru,http://waste-detection.sergei-kiprin.ru,https://${frontend_url}
+          value: http://waste-detection.website.yandexcloud.net
         - name: POSTGRESQL_CONNECTION_STRING
           value: postgresql://postgres@waste.sergei-kiprin.ru:5432/model
         - name: BROKER_URL
